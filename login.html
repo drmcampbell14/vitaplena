@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Vita Plena — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--sage:#3D7A5C;--sage-dark:#2A5E44;--sage-light:#EEF7F3;--gold:#9A7B2F;--gold-bg:#FBF6E9;--parchment:#FDFAF4;--ink:#1A2416;--ink-dim:#7A8F74;--border:rgba(61,122,92,0.18);--border-strong:rgba(61,122,92,0.3);}
+body{font-family:'Inter',sans-serif;background:var(--parchment);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:32px 28px;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(26,36,22,0.08);}
+.logo{font-family:'Cinzel',serif;font-size:28px;color:var(--sage);font-weight:700;letter-spacing:.1em;text-align:center;margin-bottom:4px;}
+.logo span{color:var(--gold);font-weight:400;}
+.tagline{font-family:'Playfair Display',serif;font-size:14px;color:var(--ink-dim);text-align:center;font-style:italic;margin-bottom:28px;}
+.tabs{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px;}
+.tab{flex:1;padding:9px;text-align:center;cursor:pointer;font-size:13px;font-family:'Cinzel',serif;letter-spacing:.05em;border:none;background:transparent;color:var(--ink-dim);transition:all .2s;}
+.tab.active{background:var(--sage);color:#fff;font-weight:600;}
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em;font-family:'Cinzel',serif;margin-bottom:5px;}
+.form-input{width:100%;border:1px solid var(--border-strong);border-radius:8px;padding:11px 12px;font-size:14px;color:var(--ink);background:#fff;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;}
+.form-input:focus{border-color:var(--sage);}
+.btn-primary{background:var(--sage);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:'Cinzel',serif;letter-spacing:.06em;transition:background .2s;margin-top:4px;}
+.btn-primary:hover{background:var(--sage-dark);}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed;}
+.divider{text-align:center;font-size:12px;color:var(--ink-dim);margin:16px 0;position:relative;}
+.divider::before,.divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border);}
+.divider::before{left:0;}.divider::after{right:0;}
+.invite-box{background:var(--gold-bg);border:1px solid rgba(154,123,47,0.22);border-radius:8px;padding:12px;font-size:13px;color:var(--ink-dim);margin-top:14px;text-align:center;line-height:1.5;}
+.error-msg{background:rgba(139,58,42,0.1);border:1px solid rgba(139,58,42,0.3);border-radius:8px;padding:10px 12px;font-size:13px;color:#8B3A2A;margin-bottom:14px;display:none;}
+.success-msg{background:var(--sage-light);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--sage);margin-bottom:14px;display:none;line-height:1.6;}
+.panel{display:none;}.panel.active{display:block;}
+.cross{text-align:center;font-size:32px;margin-bottom:16px;color:var(--sage);}
+.invite-code-display{font-family:monospace;font-size:22px;font-weight:700;color:var(--sage);letter-spacing:.15em;background:var(--sage-light);border:2px solid var(--sage);border-radius:8px;padding:10px;text-align:center;margin:10px 0;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="cross">✝</div>
+  <div class="logo">Vita <span>Plena</span></div>
+  <div class="tagline">Live fully. Together.</div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('signin')">Sign In</button>
+    <button class="tab" onclick="showTab('signup')">Create Account</button>
+  </div>
+  <div id="errorMsg" class="error-msg"></div>
+  <div id="successMsg" class="success-msg"></div>
+  <div class="panel active" id="panelSignin">
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="siEmail" placeholder="your@email.com"></div>
+    <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="siPassword" placeholder="••••••••"></div>
+    <button class="btn-primary" id="btnSignIn" onclick="signIn()">Sign In</button>
+  </div>
+  <div class="panel" id="panelSignup">
+    <div class="form-group"><label class="form-label">Your name</label><input type="text" class="form-input" id="suName" placeholder="e.g. Mitch"></div>
+    <div class="form-group"><label class="form-label">Your initials</label><input type="text" class="form-input" id="suInitials" placeholder="MD" maxlength="3"></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="suEmail" placeholder="your@email.com"></div>
+    <div class="form-group"><label class="form-label">Password (min 6 characters)</label><input type="password" class="form-input" id="suPassword" placeholder="••••••••"></div>
+    <div class="divider">joining your partner's household?</div>
+    <div class="form-group"><label class="form-label">Partner's invite code (optional)</label><input type="text" class="form-input" id="suInvite" placeholder="Leave blank if signing up first"></div>
+    <button class="btn-primary" id="btnSignUp" onclick="signUp()">Create Account</button>
+    <div class="invite-box">🙏 Sign up first, then share your invite code with your partner.</div>
+  </div>
+</div>
+<script>
+const SUPABASE_URL='https://xqeahbyfuhccbnvnhuko.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_43QRbFmTwcsXPEhAuJjs1Q__JkC-urs';
+const APP_URL='https://vitaplena13.netlify.app';
+const {createClient}=supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+function showTab(tab){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(tab==='signin'&&i===0)||(tab==='signup'&&i===1)));
+  document.getElementById('panelSignin').classList.toggle('active',tab==='signin');
+  document.getElementById('panelSignup').classList.toggle('active',tab==='signup');
+  clearMessages();
+}
+function showError(msg){const el=document.getElementById('errorMsg');el.textContent=msg;el.style.display='block';document.getElementById('successMsg').style.display='none';}
+function showSuccess(html){const el=document.getElementById('successMsg');el.innerHTML=html;el.style.display='block';document.getElementById('errorMsg').style.display='none';}
+function clearMessages(){document.getElementById('errorMsg').style.display='none';document.getElementById('successMsg').style.display='none';}
+function setLoading(id,v){const b=document.getElementById(id);b.disabled=v;b.textContent=v?'Please wait…':(id==='btnSignIn'?'Sign In':'Create Account');}
+
+async function signIn(){
+  const email=document.getElementById('siEmail').value.trim();
+  const password=document.getElementById('siPassword').value;
+  if(!email||!password){showError('Please enter your email and password.');return;}
+  setLoading('btnSignIn',true);
+  try{
+    const{error}=await db.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    window.location.href=APP_URL+'/vita_plena.html';
+  }catch(e){showError(e.message||'Sign in failed. Please try again.');setLoading('btnSignIn',false);}
+}
+
+async function signUp(){
+  const name=document.getElementById('suName').value.trim();
+  const initials=document.getElementById('suInitials').value.trim();
+  const email=document.getElementById('suEmail').value.trim();
+  const password=document.getElementById('suPassword').value;
+  const inviteCode=document.getElementById('suInvite').value.trim().toUpperCase();
+  if(!name||!email||!password){showError('Please fill in your name, email, and password.');return;}
+  if(password.length<6){showError('Password must be at least 6 characters.');return;}
+  setLoading('btnSignUp',true);
+  try{
+    const{data,error}=await db.auth.signUp({email,password});
+    if(error)throw error;
+    const userId=data.user.id;
+    let householdId;
+    if(inviteCode){
+      const{data:hh,error:hhErr}=await db.from('households').select('id').eq('invite_code',inviteCode).single();
+      if(hhErr||!hh)throw new Error('Invalid invite code. Double-check with your partner.');
+      householdId=hh.id;
+    }else{
+      const{data:hh,error:hhErr}=await db.from('households').insert({name:name+"'s Home"}).select().single();
+      if(hhErr)throw hhErr;
+      householdId=hh.id;
+      await seedHousehold(householdId);
+    }
+    const{error:profErr}=await db.from('profiles').insert({id:userId,household_id:householdId,display_name:name,initials:initials||name.slice(0,2).toUpperCase(),role:inviteCode?'p2':'p1'});
+    if(profErr)throw profErr;
+    if(inviteCode){
+      showSuccess('✅ Account created! Welcome to Vita Plena. Redirecting…');
+      setTimeout(()=>{window.location.href=APP_URL+'/vita_plena.html';},1500);
+    }else{
+      const{data:hh}=await db.from('households').select('invite_code').eq('id',householdId).single();
+      showSuccess(`✅ Welcome, ${name}! 🙏<br><br><strong>Your partner's invite code:</strong><div class="invite-code-display">${hh.invite_code}</div>Text this to your partner so they can join.<br><br><a href="${APP_URL}/vita_plena.html" style="color:var(--sage);font-weight:600;">Open Vita Plena →</a>`);
+    }
+  }catch(e){showError(e.message||'Sign up failed. Please try again.');setLoading('btnSignUp',false);}
+}
+
+async function seedHousehold(hhId){
+  await Promise.all([
+    db.from('projects').insert([
+      {household_id:hhId,name:'Household',icon:'🏠',sort_order:0},
+      {household_id:hhId,name:'Career & Goals',icon:'🎯',sort_order:1},
+      {household_id:hhId,name:'Faith',icon:'✝️',sort_order:2},
+      {household_id:hhId,name:'Health & Wellness',icon:'💪',sort_order:3},
+      {household_id:hhId,name:'Pets',icon:'🐾',sort_order:4},
+    ]),
+    db.from('budget_lines').insert([
+      {household_id:hhId,name:'Your income',type:'income',amount:0,sort_order:0},
+      {household_id:hhId,name:"Partner's income",type:'income',amount:0,sort_order:1},
+      {household_id:hhId,name:'Rent / Mortgage',type:'expense',amount:0,sort_order:2},
+      {household_id:hhId,name:'Food & Groceries',type:'expense',amount:0,sort_order:3},
+      {household_id:hhId,name:'Gas & Transport',type:'expense',amount:0,sort_order:4},
+      {household_id:hhId,name:'Subscriptions',type:'expense',amount:0,sort_order:5},
+      {household_id:hhId,name:'Giving / Tithing',type:'savings',amount:0,sort_order:6},
+      {household_id:hhId,name:'Emergency Fund',type:'savings',amount:0,sort_order:7},
+    ]),
+    db.from('virtues').insert([
+      {household_id:hhId,name:'Humility',pct:0,sort_order:0},
+      {household_id:hhId,name:'Patience',pct:0,sort_order:1},
+      {household_id:hhId,name:'Charity',pct:0,sort_order:2},
+      {household_id:hhId,name:'Fortitude',pct:0,sort_order:3},
+      {household_id:hhId,name:'Prudence',pct:0,sort_order:4},
+    ]),
+    db.from('pillars').insert([
+      {household_id:hhId,name:'💰 Financial Health',pct:0,color:'fill-gold',sort_order:0},
+      {household_id:hhId,name:'🎯 Career & Goals',pct:0,color:'fill-sky',sort_order:1},
+      {household_id:hhId,name:'🏠 Household Order',pct:0,color:'fill-sage',sort_order:2},
+      {household_id:hhId,name:'💪 Health & Wellness',pct:0,color:'fill-rose',sort_order:3},
+      {household_id:hhId,name:'✝️ Faith & Sacramental Life',pct:0,color:'fill-gold',sort_order:4},
+    ]),
+    db.from('milestones').insert([
+      {household_id:hhId,title:'Attend marriage prep / Cana retreat',date_label:'This year',status:'pending',tag:'Marriage',section:'faith',sort_order:0},
+      {household_id:hhId,title:'Receive Sacrament of Marriage',date_label:'TBD',status:'pending',tag:'Marriage',section:'faith',sort_order:1},
+      {household_id:hhId,title:'Monthly couple holy hour',date_label:'Ongoing',status:'active',tag:'Prayer',section:'faith',sort_order:2},
+    ]),
+    db.from('household_settings').insert({household_id:hhId,target_label:'Big Day',day_start:'06:00',day_end:'22:00'}),
+    db.from('recurring_tasks').insert([
+      {household_id:hhId,name:'Sunday Mass together',who:'both',project_id:'faith',freq:'weekly',repeat_days:[0]},
+      {household_id:hhId,name:'Weekly budget review',who:'both',project_id:'career',freq:'weekly',repeat_days:[0]},
+      {household_id:hhId,name:'Evening Examen',who:'both',project_id:'faith',freq:'weekly',repeat_days:[0,1,2,3,4,5,6]},
+    ]),
+  ]);
+}
+
+db.auth.getSession().then(({data:{session}})=>{
+  if(session)window.location.href=APP_URL+'/vita_plena.html';
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  if(document.getElementById('panelSignin').classList.contains('active'))signIn();
+  else signUp();
+});
+</script>
+</body>
+</html>
