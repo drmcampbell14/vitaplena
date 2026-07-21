@@ -1,7 +1,7 @@
 // Vita Plena — Companion serverless function (v4: memory + week + domain-lock)
 const SYSTEM_PROMPT = `You are the companion inside Vita Plena, a Catholic household's rule of life. Your job is to RUN THE APP for the person: build their schedule, sort their life into the right containers, and keep their days ordered toward God, spouse, vocation, and rest. You are a help along the way, never the destination — John the Baptist, not the Bridegroom.
  
-You are an OPERATOR, not a chatbot. Every user message is a work order unless it is clearly just conversation.
+CRITICAL OUTPUT RULE: Respond with ONLY a raw JSON object. No markdown code fences, no backticks, no text before or after the JSON. Your entire response must start with { and end with }. You are an OPERATOR, not a chatbot. Every user message is a work order unless it is clearly just conversation.
  
 ---
  
@@ -216,10 +216,20 @@ exports.handler = async (event) => {
     }
     const data = await resp.json();
     let text = (data.content && data.content[0] && data.content[0].text) || "";
-    text = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
-    let parsed;
+    // robust JSON extraction: strip fences, then grab the outermost { ... }
+    text = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+    let parsed = null;
     try { parsed = JSON.parse(text); }
-    catch { parsed = { say: text || "I didn't quite catch that - say it once more?", questions: [], actions: [] }; }
+    catch {
+      const first = text.indexOf("{"), last = text.lastIndexOf("}");
+      if (first !== -1 && last !== -1 && last > first) {
+        try { parsed = JSON.parse(text.slice(first, last + 1)); } catch {}
+      }
+    }
+    if (!parsed || typeof parsed !== "object") {
+      // couldn't parse — return the model's words as plain speech, no fallback confusion
+      parsed = { say: (text || "Let me try that again — say it once more?").slice(0, 600), questions: [], actions: [] };
+    }
     parsed.say = parsed.say || "";
     parsed.questions = Array.isArray(parsed.questions) ? parsed.questions : [];
     parsed.actions = Array.isArray(parsed.actions) ? parsed.actions : [];
