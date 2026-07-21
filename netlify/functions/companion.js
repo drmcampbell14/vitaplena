@@ -212,10 +212,11 @@ exports.handler = async (event) => {
     });
     if (!resp.ok) {
       const errText = await resp.text();
-      return { statusCode: 502, headers, body: JSON.stringify({ error: "Companion unavailable", detail: errText.slice(0, 300) }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ say: "[API error " + resp.status + "] " + errText.slice(0, 200), questions: [], actions: [] }) };
     }
     const data = await resp.json();
     let text = (data.content && data.content[0] && data.content[0].text) || "";
+    const rawForDebug = text;
     // robust JSON extraction: strip fences, then grab the outermost { ... }
     text = text.replace(/```json/gi, "").replace(/```/g, "").trim();
     let parsed = null;
@@ -227,8 +228,7 @@ exports.handler = async (event) => {
       }
     }
     if (!parsed || typeof parsed !== "object") {
-      // couldn't parse — return the model's words as plain speech, no fallback confusion
-      parsed = { say: (text || "Let me try that again — say it once more?").slice(0, 600), questions: [], actions: [] };
+      return { statusCode: 200, headers, body: JSON.stringify({ say: "[unparsed] " + (rawForDebug || "empty response").slice(0, 400), questions: [], actions: [] }) };
     }
     parsed.say = parsed.say || "";
     parsed.questions = Array.isArray(parsed.questions) ? parsed.questions : [];
