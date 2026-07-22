@@ -420,3 +420,11 @@ nav.tabbar button.on .ico-fill{fill:var(--sage-tint)}
 @keyframes micPulse{0%,100%{opacity:1}50%{opacity:.6}}
 
 @media(min-width:700px){ main{padding-top:24px} .statgrid{gap:14px} }
+
+/* prayer library */
+.pname-link{border-bottom:1px dashed color-mix(in srgb,var(--sage) 55%,transparent);cursor:pointer}
+.pray-tag{font-size:10.5px;color:var(--sage);font-family:var(--disp);font-style:italic;font-weight:500;margin-left:4px}
+.prayer-text{font-family:var(--disp);font-size:17px;line-height:1.75;margin-top:12px;color:var(--ink)}
+.prayer-text p{margin-bottom:14px}
+.prayer-text b{color:var(--sage-deep)}
+.prayer-text i{color:var(--muted)}
