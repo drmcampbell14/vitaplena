@@ -1,6 +1,6 @@
 /* VITA PLENA v4 — views/today.js — the Today page (ritual home in step 4; agenda now) */
 import { $, esc, rid, fmtT, todayS, ymd, addD, dayIdx, S, QUOTES, saveKey, saveField, delItem,
-  taskOccursOn, taskDoneOn, repeatLabel, areaTag, doneSet, scheduledToday, profOf, partnerName, tagCls, toast } from "./data.js";
+  taskOccursOn, taskDoneOn, repeatLabel, areaTag, doneSet, scheduledToday, profOf, partnerName, tagCls, toast, findPrayer } from "./data.js";
 
 export function renderHome(){
   const now=new Date();
@@ -55,7 +55,7 @@ export function renderHome(){
 }
 export function agendaPractice(p,dn){
   const on=dn.has(p.id);
-  return `<div class="agenda-row"><div class="agenda-time">${fmtT(p.time)}</div><div class="emoji" style="width:26px">${p.emoji||"🙏"}</div><div class="grow"><div class="title ${on?"done-text":""}">${esc(p.name)}</div><div class="kind">Rhythm · ${p.mins} min</div></div><button class="editp" onclick="editPractice('${p.id}')">✎</button><button class="donebtn ${on?"undone":""}" onclick="togglePractice('${p.id}')">${on?"Undo":"Done"}</button></div>`;
+  return `<div class="agenda-row"><div class="agenda-time">${fmtT(p.time)}</div><div class="emoji" style="width:26px">${p.emoji||"🙏"}</div><div class="grow"><div class="title ${on?"done-text":""}">${findPrayer(p.name)?`<span class="pname-link" onclick="openPrayer('${esc(p.name)}')">${esc(p.name)}</span>`:esc(p.name)}</div><div class="kind">Rhythm · ${p.mins} min${findPrayer(p.name)?" · tap name to pray":""}</div></div><button class="editp" onclick="editPractice('${p.id}')">✎</button><button class="donebtn ${on?"undone":""}" onclick="togglePractice('${p.id}')">${on?"Undo":"Done"}</button></div>`;
 }
 export function agendaEvent(e){
   return `<div class="agenda-row"><div class="agenda-time">${e.time?fmtT(e.time):"All day"}</div><div class="ev-dot ${tagCls(e)}"></div><div class="grow"><div class="title">${esc(e.title)}</div><div class="kind">Event${e.location?" · "+esc(e.location):""}</div></div><span class="owner-tag ${tagCls(e)}">${esc(e.ownerInitials||"")}</span></div>`;
