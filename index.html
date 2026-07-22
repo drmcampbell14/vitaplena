@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F4EE">
+<title>Vita Plena — A Catholic Household</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%2346604F'/><path d='M46 20h8v24h24v8H54v28h-8V52H22v-8h24z' fill='%23F7F4EE'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2346604F'/><path d='M46 20h8v24h24v8H54v28h-8V52H22v-8h24z' fill='%23F7F4EE'/></svg>">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Vita Plena">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="gate">
+
+<div id="loading"><div class="spin"></div>Fiat voluntas tua…</div>
+
+<!-- ========== AUTH GATE ========== -->
+<div id="gate">
+  <div id="gate-signin">
+    <div class="cross">✠</div>
+    <h1>Vita <span>Plena</span></h1>
+    <div class="tag">A shared rule of life for your household.</div>
+    <button class="gbtn" id="btn-google">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C41 35.4 44 30.2 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+      Continue with Google
+    </button>
+    <div class="verse">"Unless the Lord builds the house, those who build it labor in vain." — Psalm 127</div>
+  </div>
+
+  <div id="gate-onboard" style="display:none;width:100%;max-width:440px">
+    <div class="cross">✠</div>
+    <h1 style="font-size:26px">Welcome home.</h1>
+    <div class="tag" style="margin-bottom:22px">Set up your household, or join your spouse's.</div>
+    <div class="panel">
+      <label class="f">Your name</label>
+      <input id="ob-name" placeholder="Mitch" autocomplete="given-name">
+      <label class="f">Your initials</label>
+      <input id="ob-initials" placeholder="MD" maxlength="3" style="text-transform:uppercase">
+      <label class="f">Household name</label>
+      <input id="ob-house" placeholder="The Campbell Household">
+      <div style="height:16px"></div>
+      <button class="btn gold block" id="btn-create-house">Create our household</button>
+      <div class="or">or join with a code</div>
+      <input id="ob-code" placeholder="Invite code from your spouse" style="text-transform:uppercase;letter-spacing:.2em;text-align:center">
+      <div style="height:12px"></div>
+      <button class="btn block" style="background:rgba(247,244,238,.14);border:1px solid rgba(247,244,238,.3)" id="btn-join-house">Join household</button>
+    </div>
+    <button class="signout-mini" id="btn-signout-ob">Sign out</button>
+  </div>
+</div>
+
+<!-- ========== LADDER ONBOARDING ========== -->
+<div id="ladder-ob" style="display:none">
+  <div class="lob-shell">
+    <div class="lob-progress"><i id="lob-bar"></i></div>
+    <div id="lob-body"></div>
+  </div>
+</div>
+
+<!-- ========== APP SHELL ========== -->
+<header class="app" id="appheader" style="display:none">
+  <div class="brand">Vita <span>Plena</span></div>
+  <div class="date" id="hdr-date"></div>
+  <div class="avatars" id="hdr-avatars"></div>
+  <button class="hdr-menu" onclick="openDrawer()" aria-label="More" title="More">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+</header>
+
+<main id="app" style="display:none">
+
+  <!-- ===== TODAY ===== -->
+  <section class="page on" id="page-home">
+    <div class="today-head">
+      <div class="today-greet" id="greeting"></div>
+      <div class="today-date" id="greet-date"></div>
+      <svg class="today-divider" viewBox="0 0 150 8" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M2 5.5 C 26 2.5, 52 6.5, 76 4.5 S 126 3, 148 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <div id="greet-alerts"></div>
+    </div>
+    <div class="card cmp-home-card" onclick="openCompanion()">
+      <div class="cmp-home-row">
+        <span class="cmp-home-ico">✦</span>
+        <span class="cmp-home-prompt">Tell me your day…</span>
+      </div>
+    </div>
+    <div class="hero-quote">
+      <div class="q" id="dq-text"></div>
+      <div class="who" id="dq-who"></div>
+    </div>
+    <div class="statgrid">
+      <div class="stat"><div class="n" id="st-events">0</div><div class="l">Events today</div></div>
+      <div class="stat"><div class="n" id="st-count">—</div><div class="l" id="st-count-l">Countdown</div></div>
+      <div class="stat">
+        <svg class="ring" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16.5" fill="none" stroke="var(--line-soft)" stroke-width="5"/><circle id="ring-fg" cx="20" cy="20" r="16.5" fill="none" stroke="var(--sage)" stroke-width="5" stroke-linecap="round" stroke-dasharray="104" stroke-dashoffset="104" transform="rotate(-90 20 20)"/></svg>
+        <div class="l" id="ring-label" style="margin-top:5px">0/0 done</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Today</h2><span class="streak" id="streak-chip"></span></div>
+      <div id="home-plan"></div>
+      <div id="home-anytime"></div>
+      <button class="btn ghost block" style="margin-top:10px" onclick="go('calendar')">Full calendar →</button>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">This Week's Focus</h2></div>
+      <div id="focus-list"></div>
+      <div class="addline"><input id="focus-in" placeholder="Add a focus for the week…"><button class="iconbtn" onclick="addFocus()">+</button></div>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Countdowns</h2><button class="btn ghost sm" onclick="openCountdownModal()">+ Add</button></div>
+      <div id="countdown-list"></div>
+    </div>
+  </section>
+
+  <!-- ===== CALENDAR ===== -->
+  <section class="page" id="page-calendar">
+    <div class="pagehead"><h1>Calendar</h1></div>
+    <div class="gc-banner" id="gc-banner">
+      <div class="grow"><b>Sync your Google Calendar</b><div class="hint">Each of you connects your own account — events appear for both of you, labeled by owner.</div></div>
+      <button class="btn sm lit" id="btn-gcal" onclick="connectGcal()">Connect</button>
+    </div>
+    <div class="card">
+      <div class="cal-head">
+        <button class="navb" onclick="calNav(-1)">‹</button>
+        <div class="mo" id="cal-month"></div>
+        <button class="btn ghost sm" onclick="calToday()">Today</button>
+        <button class="navb" onclick="calNav(1)">›</button>
+      </div>
+      <div class="cal-grid" id="cal-dows"></div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <div class="pills" id="cal-filter">
+      <button class="pill on" data-f="all">All</button>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec" id="sel-day-title">Today</h2><span class="dayfeast" id="sel-day-feast"></span></div>
+      <div class="day-cols">
+        <div>
+          <div class="fin-cat">Events</div>
+          <div id="day-events"></div>
+          <div class="addline"><input id="ev-in" placeholder="Add… 6:30pm Dinner"><button class="iconbtn" onclick="quickAddEvent()">+</button></div>
+          <div class="hint" style="margin-top:6px">Start with a time like "7pm" and it schedules itself.</div>
+        </div>
+        <div>
+          <div class="fin-cat">Tasks</div>
+          <div id="day-tasks"></div>
+          <button class="btn ghost block" style="margin-top:8px" onclick="openTaskModal(S.calFilter,S.selDate)">+ Add task</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TASKS ===== -->
+  <section class="page" id="page-tasks">
+    <div class="pagehead"><h1>Tasks</h1><div style="display:flex;gap:8px"><button class="btn ghost sm" onclick="openCategoryModal()">+ Category</button><button class="btn sm" onclick="openTaskModal()">+ Task</button></div></div>
+    <div class="card quickadd-card">
+      <label class="f" style="margin-bottom:6px">Just type it — I'll schedule it</label>
+      <div class="addline">
+        <input id="qa-in" placeholder="e.g. Wash dogs every 14 days on Friday" onkeydown="if(event.key==='Enter')quickAddParse()">
+        <button class="iconbtn" onclick="quickAddParse()">→</button>
+      </div>
+      <div class="qa-preview" id="qa-preview"></div>
+    </div>
+    <div id="task-areas"></div>
+  </section>
+
+  <!-- ===== FAITH ===== -->
+  <section class="page" id="page-faith">
+    <div class="pagehead"><h1>Faith</h1></div>
+    <div class="pills" id="faith-tabs">
+      <button class="pill on" data-t="rhythm">Rhythm</button>
+      <button class="pill" data-t="readings">Readings</button>
+      <button class="pill" data-t="examen">Examen</button>
+      <button class="pill" data-t="confession">Confession</button>
+      <button class="pill" data-t="books">Books</button>
+      <button class="pill" data-t="virtue">Virtue</button>
+    </div>
+
+    <div class="ft" id="ft-rhythm">
+      <div class="card">
+        <div class="sec-row"><h2 class="sec">Daily Rhythm</h2><span class="streak" id="streak-chip2"></span></div>
+        <div class="italic-note">Your completions are your own — your spouse's are theirs. The rhythm is shared.</div>
+        <div id="faith-rhythm"></div>
+        <button class="btn ghost block" onclick="openPracticeModal()">+ Add practice</button>
+      </div>
+      <div class="card">
+        <h2 class="sec">Prayers</h2>
+        <div class="italic-note">The words the Church has always prayed — tap to pray them now, or tap a practice above by name.</div>
+        <div id="prayer-lib"></div>
+      </div>
+      <div class="card">
+        <h2 class="sec">Plan of Life</h2>
+        <div class="italic-note">Your non-negotiable spiritual commitments — the rhythm of your soul.</div>
+        <div id="plan-list"></div>
+        <div class="addline"><input id="plan-in" placeholder="Add commitment…"><button class="iconbtn" onclick="addPlan()">+</button></div>
+      </div>
+    </div>
+
+    <div class="ft" id="ft-readings" style="display:none">
+      <div class="card">
+        <h2 class="sec">Today in the Church</h2>
+        <div class="row"><div class="emoji">✠</div><div class="grow"><div class="title" id="rd-season"></div><div class="sub" id="rd-saint"></div></div></div>
+        <div class="row"><div class="emoji">📖</div><div class="grow"><div class="title">Daily Mass Readings</div><div class="sub">USCCB — today's lectionary</div></div><a class="btn ghost sm" id="rd-usccb" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div>
+        <div class="row"><div class="emoji">🕊️</div><div class="grow"><div class="title">Liturgy of the Hours</div><div class="sub">Universalis — pray the Office</div></div><a class="btn ghost sm" href="https://universalis.com/today.htm" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div>
+        <div class="row"><div class="emoji">🎧</div><div class="grow"><div class="title">Bible in a Year</div><div class="sub">Fr. Mike Schmitz — Ascension</div></div><a class="btn ghost sm" href="https://ascensionpress.com/pages/biy-registration" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div>
+      </div>
+      <div class="card">
+        <h2 class="sec">Today's Readings</h2>
+        <div id="readings-body"><div class="empty">Loading today's readings…</div></div>
+      </div>
+      <div class="card">
+        <h2 class="sec">Lectio Notes</h2>
+        <div class="italic-note">What word or phrase is the Lord speaking to you today?</div>
+        <textarea id="lectio-in" rows="3" placeholder="Write what stirred in prayer…"></textarea>
+        <div style="height:10px"></div>
+        <button class="btn block" onclick="saveLectio()">Save note</button>
+        <div id="lectio-list" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="ft" id="ft-examen" style="display:none">
+      <div class="card">
+        <h2 class="sec">Evening Examen</h2>
+        <div class="qhist" id="examen-quote" style="margin-bottom:12px"></div>
+        <div class="italic-note">1. Give thanks · 2. Ask for light · 3. Review the day · 4. Ask forgiveness · 5. Resolve for tomorrow</div>
+        <textarea id="examen-in" rows="4" placeholder="Where did I meet God today? Where did I turn away?"></textarea>
+        <div style="height:10px"></div>
+        <button class="btn block" onclick="saveExamen()">Save examen</button>
+      </div>
+      <div class="card"><h2 class="sec">Past Examens</h2><div id="examen-list"></div></div>
+    </div>
+
+    <div class="ft" id="ft-confession" style="display:none">
+      <div class="card">
+        <h2 class="sec">Confession</h2>
+        <div class="row"><div class="emoji">🕯️</div><div class="grow"><div class="title" id="conf-last">No confession logged yet</div><div class="sub" id="conf-due"></div></div></div>
+        <button class="btn block" onclick="logConfession()">I went to confession today</button>
+        <label class="f">Aim to go every</label>
+        <select id="conf-cadence"><option value="7">Week</option><option value="14" selected>Two weeks</option><option value="30">Month</option></select>
+        <div class="fin-cat" style="margin-top:16px">Your log</div>
+        <div class="hint" style="margin-bottom:4px">Private to you — dates only, never contents.</div>
+        <div id="conf-log"></div>
+      </div>
+      <div class="card">
+        <h2 class="sec">Examination of Conscience</h2>
+        <div class="row"><div class="emoji">📜</div><div class="grow"><div class="title">Guide for adults</div><div class="sub">USCCB examination of conscience</div></div><a class="btn ghost sm" href="https://www.usccb.org/prayer-and-worship/sacraments-and-sacramentals/penance/examinations-of-conscience" target="_blank" rel="noopener" style="text-decoration:none">Open</a></div>
+      </div>
+    </div>
+
+    <div class="ft" id="ft-books" style="display:none">
+      <div class="card">
+        <div class="sec-row"><h2 class="sec">Spiritual Reading</h2><button class="btn ghost sm" onclick="openBookModal()">+ Add book</button></div>
+        <div class="italic-note">Fifteen minutes a day, faithfully kept, will take you through the great books. Never miss twice.</div>
+        <div id="book-list"></div>
+      </div>
+    </div>
+
+    <div class="ft" id="ft-virtue" style="display:none">
+      <div class="card">
+        <h2 class="sec">Virtue of the Month</h2>
+        <div class="italic-note" id="virtue-note"></div>
+        <label class="f">This month we are practicing</label>
+        <select id="virtue-sel" onchange="virtueSelChange()"></select>
+        <input id="virtue-in" placeholder="Name your virtue…" style="display:none;margin-top:8px">
+        <label class="f">Concrete resolution</label>
+        <textarea id="virtue-res" rows="2" placeholder="One small, repeatable act…"></textarea>
+        <div style="height:10px"></div>
+        <button class="btn block" onclick="saveVirtue()">Save</button>
+      </div>
+      <div class="card">
+        <h2 class="sec">Why virtue?</h2>
+        <div class="hint" style="font-size:14.5px;line-height:1.6">Neuroscience calls it self-directed neuroplasticity; the Church calls it habitus. A virtue is a stable disposition carved by repeated free acts — every deliberate act of patience strengthens the prefrontal pathways that make the next act easier. Grace builds on nature.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== US ===== -->
+  <section class="page" id="page-us">
+    <div class="pagehead"><h1>Us</h1></div>
+    <div class="prompt-card" id="prompt-card">
+      <div class="q" id="prompt-q"></div>
+      <div class="tap">Reflection prompt · tap for a new one</div>
+    </div>
+    <div class="card">
+      <h2 class="sec">Reflection Space</h2>
+      <div class="italic-note">Some things aren't ready to be shared — and that's okay. Write here first.</div>
+      <div class="vis-toggle">
+        <button id="vis-priv" class="on" onclick="setVis(false)">🔒 Private</button>
+        <button id="vis-share" onclick="setVis(true)">👫 Share with partner</button>
+      </div>
+      <textarea id="refl-in" rows="4" placeholder="Write here…"></textarea>
+      <div style="height:10px"></div>
+      <button class="btn block" onclick="saveReflection()">Save</button>
+    </div>
+    <div class="card">
+      <h2 class="sec">Daily · The Three Words</h2>
+      <div class="italic-note">"Please, thanks, and sorry — never let the day end without making peace." — Pope Francis</div>
+      <div id="tw-list"></div>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Weekly · State of the Union</h2><span class="hint" id="ci-last"></span></div>
+      <details class="rdg"><summary>Opening prayer<span class="src">30 seconds</span></summary><div class="rtext">Lord Jesus, sit with us now. Give us honest tongues and gentle ears. Let nothing be said in these minutes except in love, and let nothing true be left unsaid out of fear. Amen.</div></details>
+      <div class="hint" style="margin:10px 0 0">Best weekly — many couples take Sunday evening. Speak in turns; the listener only listens.</div>
+      <label class="f">Appreciations — specific things they did this week (aim for five!)</label>
+      <textarea id="ci-appr" rows="3" placeholder="I appreciated when you…"></textarea>
+      <label class="f">What went well for us this week?</label>
+      <textarea id="ci-well" rows="2"></textarea>
+      <label class="f">Where did God show up in our week?</label>
+      <textarea id="ci-god" rows="2"></textarea>
+      <label class="f">One thing to name gently (just one — not the whole list)</label>
+      <textarea id="ci-name" rows="2" placeholder="I feel… about… and I need…"></textarea>
+      <label class="f">One thing that would help me feel loved next week</label>
+      <textarea id="ci-need" rows="2"></textarea>
+      <label class="f">How connected did we feel this week?</label>
+      <div class="scale" id="ci-scale"></div>
+      <label class="f">Did we pray together?</label>
+      <div class="yn" id="ci-pray"><button>Yes</button><button>No</button></div>
+      <label class="f">Date night this week?</label>
+      <div class="yn" id="ci-date"><button>Yes</button><button>No</button></div>
+      <div style="height:12px"></div>
+      <button class="btn block" onclick="saveCheckin()">Save check-in</button>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Monthly · The Sit-Down</h2><span class="hint" id="sd-last"></span></div>
+      <div class="italic-note">In the tradition of Teams of Our Lady: once a month, sit down with your spouse and Christ, and review your life together.</div>
+      <details class="rdg"><summary>Opening prayer<span class="src">pray together first</span></summary><div class="rtext">Come, Holy Spirit, fill our hearts and kindle in them the fire of Your love. Mary, Mother of our home, keep watch over this conversation. Amen.</div></details>
+      <div class="sec-row" style="margin-top:14px"><span class="fin-cat" style="margin:0" id="sd-domain"></span><button class="btn ghost sm" onclick="cycleDomain()">Next topic ›</button></div>
+      <div id="sd-questions"></div>
+      <label class="f">Our notes from this sit-down</label>
+      <textarea id="sd-notes" rows="3"></textarea>
+      <label class="f">One resolution we're making together</label>
+      <input id="sd-res" placeholder="e.g. Rosary before bed on weeknights">
+      <div style="height:12px"></div>
+      <button class="btn block" onclick="saveSitdown()">Save sit-down — resolution goes to Weekly Focus</button>
+      <div id="sitdown-list" style="margin-top:14px"></div>
+    </div>
+    <div class="card">
+      <h2 class="sec">Our Shared To-Dos</h2>
+      <div id="sharedtodo-list"></div>
+      <div class="addline"><input id="sharedtodo-in" placeholder="Add shared task…"><button class="iconbtn" onclick="addSharedTodo()">+</button></div>
+    </div>
+    <div class="card"><h2 class="sec">Shared Reflections</h2><div id="shared-refl-list"></div></div>
+    <div class="card"><h2 class="sec">Past Check-ins</h2><div id="checkin-list"></div></div>
+  </section>
+
+  <!-- ===== MEALS ===== -->
+  <section class="page" id="page-meals">
+    <div class="pagehead"><h1>Meals</h1><button class="btn ghost sm" onclick="clearWeekMeals()">Clear week</button></div>
+    <div class="card">
+      <div class="daytabs" id="meal-days"></div>
+      <label class="f">Breakfast</label><input class="meal-in" id="meal-b" placeholder="What's for breakfast?">
+      <label class="f">Lunch</label><input class="meal-in" id="meal-l" placeholder="What's for lunch?">
+      <label class="f">Dinner</label><input class="meal-in" id="meal-d" placeholder="What's for dinner?">
+      <div class="hint" id="friday-hint" style="margin-top:12px;display:none">🐟 Friday — a day of penance. Consider a meatless meal.</div>
+    </div>
+    <div class="card">
+      <h2 class="sec">Grocery List</h2>
+      <div id="grocery-list"></div>
+      <div class="addline"><input id="grocery-in" placeholder="Add item…"><button class="iconbtn" onclick="addGrocery()">+</button></div>
+      <button class="btn ghost block" style="margin-top:10px" onclick="clearDoneGroceries()">Clear checked items</button>
+    </div>
+  </section>
+
+  <!-- ===== FINANCES ===== -->
+  <section class="page" id="page-finance">
+    <div class="pagehead"><h1>Finances</h1></div>
+    <div class="card">
+      <div class="fin-summary">
+        <div><div class="n c-inc" id="fs-inc">$0</div><div class="l">Income</div></div>
+        <div><div class="n c-exp" id="fs-exp">$0</div><div class="l">Expenses</div></div>
+        <div><div class="n c-sav" id="fs-sav">$0</div><div class="l">Savings</div></div>
+        <div><div class="n" id="fs-net">$0</div><div class="l">Net left</div></div>
+      </div>
+      <div class="fin-bar"><i id="fin-bar-i" style="width:0%"></i></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px" class="hint">
+        <span>Spent: <b id="fs-spent">$0</b></span><span>Budgeted: <b id="fs-budg">$0</b></span>
+      </div>
+      <div class="hint" style="margin-top:8px;font-family:var(--disp);font-style:italic">Tithe first — "Honor the Lord with your wealth, with the firstfruits." (Prov 3:9)</div>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Monthly Budget</h2><button class="btn ghost sm" onclick="openBudgetModal()">+ Line</button></div>
+      <div id="budget-list"></div>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Spending Log</h2><button class="btn ghost sm" onclick="openSpendModal()">+ Log</button></div>
+      <div id="spend-list"></div>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Savings & Funds</h2><button class="btn ghost sm" onclick="openFundModal()">+ Fund</button></div>
+      <div id="fund-list"></div>
+    </div>
+    <div class="card">
+      <div class="sec-row"><h2 class="sec">Loans & Debts</h2><button class="btn ghost sm" onclick="openDebtModal()">+ Debt</button></div>
+      <div id="debt-list"></div>
+    </div>
+  </section>
+
+  <!-- ===== FAMILY ===== -->
+  <section class="page" id="page-family">
+    <div class="pagehead"><h1>Family & Pets</h1><button class="btn ghost sm" onclick="openFamModal()">+ Section</button></div>
+    <div id="fam-list"></div>
+    <div class="card" id="fam-empty" style="display:none;text-align:center;padding:34px 18px">
+      <div style="font-size:34px">🐾</div>
+      <div class="italic-note" style="margin:10px 0 16px">Add a section for each pet, child, or family member you care for.</div>
+      <button class="btn" onclick="openFamModal()">+ Add first section</button>
+    </div>
+  </section>
+
+  <!-- ===== NOTES ===== -->
+  <section class="page" id="page-notes">
+    <div class="pagehead"><h1>Notes</h1><button class="btn ghost sm" onclick="openNoteModal()">+ Note</button></div>
+    <div id="note-list"></div>
+  </section>
+
+  <!-- ===== SETTINGS ===== -->
+  <section class="page" id="page-settings">
+    <div class="pagehead"><h1>Household</h1></div>
+    <div class="card">
+      <h2 class="sec">Members</h2>
+      <div id="member-list"></div>
+    </div>
+    <div class="card">
+      <h2 class="sec">Invite Your Spouse</h2>
+      <div class="hint">They sign in with their own Google account and enter this code — everything stays in sync between you.</div>
+      <div class="code-display" id="invite-code">······</div>
+      <button class="btn block" onclick="copyInvite()">Copy code</button>
+    </div>
+    <div class="card">
+      <h2 class="sec">Your Profile</h2>
+      <label class="f">Name</label><input id="set-name">
+      <label class="f">Initials</label><input id="set-initials" maxlength="3" style="text-transform:uppercase">
+      <div style="height:10px"></div>
+      <button class="btn block" onclick="saveProfile()">Save profile</button>
+    </div>
+    <div class="card">
+      <h2 class="sec">Household</h2>
+      <label class="f">Household name</label><input id="set-house">
+      <label class="f">Countdown label</label><input id="set-cd-label" placeholder="Ponte Vedra">
+      <label class="f">Countdown date</label><input id="set-cd-date" type="date">
+      <div style="height:10px"></div>
+      <button class="btn block" onclick="saveHouseSettings()">Save household</button>
+    </div>
+    <div class="card">
+      <h2 class="sec">Re-order your rule of life</h2>
+      <div class="hint">Walk through God → Family → Vocation → Rest again — reshape your prayers, focuses, and rhythm for a new season. Your existing data stays; this only updates what you change.</div>
+      <div style="height:10px"></div>
+      <button class="btn block gold" onclick="rerunLadder()">Begin again ✠</button>
+    </div>
+    <div class="card">
+      <h2 class="sec">Google Calendar</h2>
+      <div class="hint" id="gcal-status">Not connected on this device.</div>
+      <div style="height:10px"></div>
+      <button class="btn block lit" onclick="connectGcal()">Connect / Sync now</button>
+    </div>
+    <div class="card">
+      <h2 class="sec">About</h2>
+      <div class="hint">Vita Plena v4 · <i style="font-family:var(--disp)">Fiat voluntas tua.</i><br>"Do everything for the glory of God." — 1 Cor 10:31</div>
+      <div style="height:12px"></div>
+      <button class="btn danger-ghost block" onclick="doSignOut()">Sign out</button>
+    </div>
+  </section>
+</main>
+
+<!-- tab bar: Today · Calendar · Tasks · Us · Faith -->
+<nav class="tabbar" id="tabbar" style="display:none">
+  <button data-p="home" class="on"><svg viewBox="0 0 24 24"><circle class="ico-fill" cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>Today</button>
+  <button data-p="calendar"><svg viewBox="0 0 24 24"><rect class="ico-fill" x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button>
+  <button data-p="tasks"><svg viewBox="0 0 24 24"><rect class="ico-fill" x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12.5l2.7 2.7L16.5 9"/></svg>Tasks</button>
+  <button data-p="us"><svg viewBox="0 0 24 24"><path class="ico-fill" d="M12 21s-7-4.4-7-9.5A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 3.5C19 16.6 12 21 12 21z"/></svg>Us</button>
+  <button data-p="faith"><svg viewBox="0 0 24 24"><path class="ico-fill" d="M10 3h4v6h6v4h-6v8h-4v-8H4V9h6z"/></svg>Faith</button>
+</nav>
+
+<!-- ========== COMPANION ========== -->
+<button id="cmp-fab" onclick="openCompanion()" style="display:none" title="Tell me your day">✦</button>
+<div id="cmp-sheet" style="display:none">
+  <div class="cmp-scrim" onclick="closeCompanion()"></div>
+  <div class="cmp-panel">
+    <div class="cmp-head">
+      <div class="cmp-title">Companion</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="cmp-x" id="cmp-voice-btn" onclick="cmpToggleVoice()" title="Voice off">🔇</button>
+        <button class="cmp-x" onclick="closeCompanion()">✕</button>
+      </div>
+    </div>
+    <div class="cmp-log" id="cmp-log">
+      <div class="cmp-msg cmp-bot">Tell me the shape of your day — work, prayers, the dogs, time together, whatever's on it. I'll order it. <span style="opacity:.6">He must increase; I must decrease.</span></div>
+    </div>
+    <div class="cmp-input">
+      <button id="cmp-mic" onclick="cmpMic()" title="Speak">🎙</button>
+      <textarea id="cmp-in" rows="2" placeholder="e.g. Work 8–12 and 2–6, walk the dogs, rosary after dinner…"></textarea>
+      <button id="cmp-send" onclick="cmpSend()">→</button>
+    </div>
+  </div>
+</div>
+
+<div class="drawer-scrim" id="drawer-scrim" onclick="closeDrawer()">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="handle"></div>
+    <div class="drawer-title">Everything else</div>
+    <button class="dr-item" onclick="go('meals');closeDrawer()"><span class="emoji">🍞</span>Meal Plan & Groceries<span class="chev">›</span></button>
+    <button class="dr-item" onclick="go('finance');closeDrawer()"><span class="emoji">🕊️</span>Finances & Tithing<span class="chev">›</span></button>
+    <button class="dr-item" onclick="go('family');closeDrawer()"><span class="emoji">🐾</span>Family & Pets<span class="chev">›</span></button>
+    <button class="dr-item" onclick="go('notes');closeDrawer()"><span class="emoji">📝</span>Notes<span class="chev">›</span></button>
+    <button class="dr-item" onclick="go('settings');closeDrawer()"><span class="emoji">⚙️</span>Household & Settings<span class="chev">›</span></button>
+  </div>
+</div>
+
+<!-- generic modal -->
+<div class="modal-scrim" id="modal-scrim" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
