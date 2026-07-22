@@ -12,12 +12,12 @@ export const FIREBASE_CONFIG = {
   appId: "1:321629125374:web:3130956b0be69f921383af"
 };
 export const GOOGLE_CLIENT_ID = "321629125374-jqeuba99c0gm7qb4ja9q47pmkc5j8674.apps.googleusercontent.com";
-
+ 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, setDoc, updateDoc, deleteDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
+ 
 /* ---------------- liturgical engine (season is a text detail now, not the theme) ---------------- */
 export function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;return new Date(y,mo-1,da);}
 export function addD(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
@@ -39,7 +39,7 @@ export function season(d){
   if(cmp(t,xmas)>=0) return {name:"Christmas"};
   return {name:"Ordinary Time"};
 }
-
+ 
 /* ---------------- constants (ported verbatim from v3) ---------------- */
 export const SAINTS={ "01-01":"Mary, Mother of God","01-02":"Ss. Basil & Gregory Nazianzen","01-04":"St. Elizabeth Ann Seton","01-05":"St. John Neumann","01-17":"St. Anthony of Egypt","01-21":"St. Agnes","01-24":"St. Francis de Sales","01-25":"Conversion of St. Paul","01-26":"Ss. Timothy & Titus","01-28":"St. Thomas Aquinas","01-31":"St. John Bosco",
 "02-02":"Presentation of the Lord","02-03":"St. Blaise","02-05":"St. Agatha","02-06":"St. Paul Miki & Companions","02-10":"St. Scholastica","02-11":"Our Lady of Lourdes","02-14":"Ss. Cyril & Methodius","02-22":"Chair of St. Peter","02-23":"St. Polycarp",
@@ -68,7 +68,7 @@ export const EXAMEN_Q=["Where did I meet Christ in the people I encountered toda
 export const DEFAULT_PRACTICES=[{id:"p1",name:"Morning Offering",emoji:"🙏",time:"07:00",mins:5,days:[0,1,2,3,4,5,6]},{id:"p2",name:"Holy Mass",emoji:"✝️",time:"08:00",mins:60,days:[0,1,2,3,4,5,6]},{id:"p3",name:"Angelus",emoji:"🔔",time:"12:00",mins:5,days:[0,1,2,3,4,5,6]},{id:"p4",name:"Holy Rosary",emoji:"📿",time:"19:00",mins:20,days:[0,1,2,3,4,5,6]},{id:"p5",name:"Evening Examen",emoji:"🕯️",time:"21:00",mins:10,days:[0,1,2,3,4,5,6]}];
 export const DEFAULT_PLAN=[{id:"pl1",text:"Daily Mass"},{id:"pl2",text:"Holy Rosary"},{id:"pl3",text:"Spiritual reading 15 min"},{id:"pl4",text:"Weekly confession"}];
 export const VIRTUES=["Faith","Hope","Charity","Prudence","Justice","Fortitude","Temperance","Humility","Patience","Chastity","Diligence","Kindness","Generosity","Meekness","Gratitude","Obedience","Perseverance","Silence & Recollection"];
-
+ 
 /* ---------------- tiny utils ---------------- */
 export const $=id=>document.getElementById(id);
 export const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -84,13 +84,13 @@ export function setVal(id,v){const el=$(id);if(el&&document.activeElement!==el)e
 export function fmtMins(m){if(m<60)return m+" min";const h=Math.floor(m/60);return h+"h"+(m%60?" "+(m%60)+"m":"");}
 export function ordinal(n){const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 export const DOWS=["Su","Mo","Tu","We","Th","Fr","Sa"];
-
+ 
 /* ---------------- app state + render bus ---------------- */
 export const S={user:null,profile:null,hid:null,house:null,state:{},items:[],selDate:todayS(),calCursor:new Date(),mealDay:(new Date().getDay()+6)%7,calFilter:"all",faithTab:"rhythm",shareRefl:false,ci:{scale:0,pray:null,date:null},sdIdx:null,gcalToken:null,gcalConnected:false,unsubs:[]};
 window.S=S;
 /* views register their render functions on the bus; app.js drives it */
 export const bus={render:()=>{}};
-
+ 
 /* ---------------- firebase ---------------- */
 export const app=initializeApp(FIREBASE_CONFIG);
 export const auth=getAuth(app);
@@ -99,7 +99,7 @@ try{_db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:per
 catch(e){_db=initializeFirestore(app,{});}
 export const db=_db;
 export const provider=new GoogleAuthProvider();
-
+ 
 /* ---------------- write helpers ---------------- */
 export const stateRef=()=>doc(db,"households",S.hid,"state","main");
 export const itemsCol=()=>collection(db,"households",S.hid,"items");
@@ -109,13 +109,13 @@ export function addItem(data){return addDoc(itemsCol(),{...data,owner:S.user.uid
 export function updItem(id,data){return updateDoc(doc(db,"households",S.hid,"items",id),data).catch(e=>toast(e.message));}
 export function delItem(id){return deleteDoc(doc(db,"households",S.hid,"items",id)).catch(e=>toast(e.message));}
 window.delItem=delItem;window.updItem=updItem;
-
+ 
 export const partnerUid=()=>(S.house?.members||[]).find(m=>m!==S.user.uid);
 export const partnerName=()=>{const u=partnerUid();return u?profOf(u).name:"your spouse";};
 export const profOf=u=>S.house?.profiles?.[u]||{name:"—",initials:"·"};
 export const isMine=it=>it.owner===S.user.uid;
 export const tagCls=it=>isMine(it)?"":"p2";
-
+ 
 /* ---------------- recurrence engine ---------------- */
 export function scheduledToday(p,d){const dt=d||new Date();return(p.days||[]).includes(dt.getDay());}
 export function doneSet(dateS){return new Set(((S.state.rhythmDone||{})[dateS]||{})[S.user.uid]||[]);}
@@ -162,4 +162,39 @@ export function ensureSection(area,name){
     saveField("taskSections."+area,secs.concat([sec]));
   }
   return sec;
+}
+ 
+/* ---------------- prayer library (traditional texts, tap-to-pray) ---------------- */
+const P_HAILMARY="Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.";
+export const PRAYER_LIB=[
+ {id:"offering",match:["morning offering","offering"],emoji:"🙏",title:"The Morning Offering",
+  body:`<p>O Jesus, through the Immaculate Heart of Mary, I offer You my prayers, works, joys, and sufferings of this day, for all the intentions of Your Sacred Heart, in union with the Holy Sacrifice of the Mass throughout the world, in reparation for my sins, for the intentions of all my relatives and friends, and in particular for the intentions of the Holy Father. Amen.</p>`},
+ {id:"angelus",match:["angelus"],emoji:"🔔",title:"The Angelus",
+  body:`<p><b>V.</b> The Angel of the Lord declared unto Mary,<br><b>R.</b> And she conceived of the Holy Spirit.</p>
+<p><i>${P_HAILMARY}</i></p>
+<p><b>V.</b> Behold the handmaid of the Lord,<br><b>R.</b> Be it done unto me according to thy word.</p>
+<p><i>Hail Mary…</i></p>
+<p><b>V.</b> And the Word was made flesh,<br><b>R.</b> And dwelt among us.</p>
+<p><i>Hail Mary…</i></p>
+<p><b>V.</b> Pray for us, O holy Mother of God,<br><b>R.</b> That we may be made worthy of the promises of Christ.</p>
+<p><b>Let us pray:</b> Pour forth, we beseech Thee, O Lord, Thy grace into our hearts, that we, to whom the Incarnation of Christ Thy Son was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection. Through the same Christ our Lord. Amen.</p>`},
+ {id:"reginacaeli",match:[],emoji:"🔔",title:"Regina Caeli",
+  note:"During Eastertide, the Regina Caeli replaces the Angelus.",
+  body:`<p><b>V.</b> Queen of Heaven, rejoice, alleluia.<br><b>R.</b> For He whom thou didst merit to bear, alleluia.</p>
+<p><b>V.</b> Hath risen as He said, alleluia.<br><b>R.</b> Pray for us to God, alleluia.</p>
+<p><b>V.</b> Rejoice and be glad, O Virgin Mary, alleluia.<br><b>R.</b> For the Lord hath truly risen, alleluia.</p>
+<p><b>Let us pray:</b> O God, who through the Resurrection of Thy Son, our Lord Jesus Christ, didst vouchsafe to give joy to the world: grant, we beseech Thee, that through His Mother, the Virgin Mary, we may obtain the joys of everlasting life. Through the same Christ our Lord. Amen.</p>`},
+ {id:"night",match:["night prayer","night prayers","evening prayer","compline","bedtime"],emoji:"🌙",title:"Night Prayers",
+  body:`<p><b>Act of Contrition</b></p>
+<p>O my God, I am heartily sorry for having offended Thee, and I detest all my sins because I dread the loss of Heaven and the pains of hell; but most of all because they offend Thee, my God, Who art all-good and deserving of all my love. I firmly resolve, with the help of Thy grace, to confess my sins, to do penance, and to amend my life. Amen.</p>
+<p><b>Commendation</b></p>
+<p>Into Thy hands, O Lord, I commend my spirit. Protect us, Lord, as we stay awake; watch over us as we sleep: that awake, we may keep watch with Christ, and asleep, rest in His peace.</p>
+<p>May the Lord grant us a quiet night and a peaceful death. Amen.</p>
+<p><i>Our Father… Hail Mary… Glory be…</i></p>`}
+];
+export function findPrayer(name){
+  const n=(name||"").toLowerCase();
+  let hit=PRAYER_LIB.find(pr=>pr.match.some(m=>n.includes(m)));
+  if(hit&&hit.id==="angelus"&&season(new Date()).name==="Easter")hit=PRAYER_LIB.find(pr=>pr.id==="reginacaeli");
+  return hit||null;
 }
