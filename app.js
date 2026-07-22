@@ -8,7 +8,7 @@ import { doc, getDoc, setDoc, updateDoc, addDoc, collection, onSnapshot, arrayUn
 import { renderHome } from "./today.js";
 import { renderCalendar, wireCalendarInputs } from "./calendar.js";
 import { renderTasks } from "./tasks.js";
-import { renderFaith, loadReadings } from "./faith.js";
+import { renderFaith, loadReadings, renderPrayerCard } from "./faith.js";
 import { renderUs, wireUs } from "./us.js";
 import { renderMeals, renderFinance, renderFamily, renderNotes, wireMeals } from "./extras.js";
 import { renderSettings } from "./settings.js";
@@ -18,7 +18,7 @@ import "./companion.js";
 /* ---------------- render loop ---------------- */
 function renderAll(){
   if(!S.house)return;
-  renderHeader();renderHome();renderCalendar();renderTasks();renderFaith();renderUs();
+  renderHeader();renderHome();renderCalendar();renderTasks();renderFaith();renderPrayerCard();renderUs();
   renderMeals();renderFinance();renderFamily();renderNotes();renderSettings();
 }
 bus.render=renderAll;
