@@ -1,7 +1,8 @@
 /* VITA PLENA v4 — views/faith.js — rhythm, readings, examen, confession, books, virtue */
 import { $, esc, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, S, SAINTS, EXAMEN_Q, VIRTUES, DOWS, season,
-  saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, setVal, toast } from "./data.js";
-
+  saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, setVal, toast,
+  PRAYER_LIB, findPrayer } from "./data.js";
+ 
 function practiceWeight(mins){ return mins<=5?"light":mins<=20?"med":"heavy"; }
 function weightBars(w){
   const n=w==="light"?1:w==="med"?2:3;
@@ -13,7 +14,7 @@ function practiceRow(p,dn,editable){
   return `<div class="practice w-${w} ${on?"done-p":""}" id="prow-${p.id}">
     <div class="emoji">${p.emoji||"🙏"}</div>
     <div class="grow">
-      <div class="nm">${esc(p.name)}</div>
+      <div class="nm">${findPrayer(p.name)?`<span class="pname-link" onclick="openPrayer('${esc(p.name)}')">${esc(p.name)} <span class="pray-tag">pray →</span></span>`:esc(p.name)}</div>
       <div class="meta-lite">${fmtT(p.time)} · ${p.mins} min${editable?" · "+(p.days||[]).map(d=>DOWS[d]).join(" "):""}</div>
       ${weightBars(w)}
     </div>
@@ -232,3 +233,18 @@ function renderReadings(j){
   if(cp)h+=`<div class="hint" style="font-size:11px;margin-top:6px;opacity:.75">${cp}</div>`;
   $("readings-body").innerHTML=h||'<div class="empty">No readings returned — use the USCCB link above.</div>';
 }
+ 
+/* ---- prayer library (tap a practice, or browse here) ---- */
+export function renderPrayerCard(){
+  const list=PRAYER_LIB.filter(pr=>pr.id!=="reginacaeli"||season(new Date()).name==="Easter");
+  $("prayer-lib").innerHTML=list.filter(pr=>!(pr.id==="angelus"&&season(new Date()).name==="Easter")).map(pr=>
+    `<div class="row" style="cursor:pointer" onclick="openPrayerId('${pr.id}')"><div class="emoji">${pr.emoji}</div><div class="grow"><div class="title">${pr.title}</div></div><span class="hint">pray →</span></div>`).join("");
+}
+function prayerModal(pr){
+  window.openModal(`<h3>${pr.emoji} ${pr.title}</h3>
+    ${pr.note?`<div class="hint" style="margin-top:2px">${pr.note}</div>`:""}
+    <div class="prayer-text">${pr.body}</div>
+    <div class="actions"><button class="btn block" onclick="closeModal()">Amen</button></div>`);
+}
+window.openPrayer=(name)=>{const pr=findPrayer(name);if(pr)prayerModal(pr);};
+window.openPrayerId=(id)=>{const pr=PRAYER_LIB.find(x=>x.id===id);if(pr)prayerModal(pr);};
