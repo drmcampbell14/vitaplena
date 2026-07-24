@@ -26,7 +26,8 @@ export function renderHome(){
   else if(mr==="weekly" && dow===0) relChip=`<div class="overdue" style="margin-right:8px">💛 Weekly check-in with ${partnerName()} today</div>`;
   else if(mr==="monthly" && now.getDate()===1) relChip=`<div class="overdue" style="margin-right:8px">💛 Monthly sit-down with ${partnerName()} today</div>`;
   $("greet-alerts").innerHTML=confChip+relChip+(overdue?`<div class="overdue">${overdue} overdue task${overdue>1?"s":""}</div>`:"");
-  const evToday=S.items.filter(i=>i.kind==="event"&&i.date===dateS).sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
+  const evMine=e=>e.area==="together"||(e.area?e.area===S.user.uid:e.owner===S.user.uid);
+  const evToday=S.items.filter(i=>i.kind==="event"&&i.date===dateS&&evMine(i)).sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
   $("st-events").textContent=evToday.length;
   const cds=(S.state.countdowns||[]).concat(S.house.countdown&&S.house.countdown.date?[{label:S.house.countdown.label||"Goal",date:S.house.countdown.date}]:[]);
   const next=cds.filter(c=>c.date>=dateS).sort((a,b)=>a.date.localeCompare(b.date))[0];
