@@ -1,23 +1,37 @@
 /* VITA PLENA v4 — views/tasks.js — tasks, sections, quick-add parser, task modal */
 import { $, esc, rid, fmtT, todayS, ymd, addD, S, DOWS, saveField, addItem, updItem, delItem,
-  taskDoneOn, repeatLabel, areaTag, profOf, ordinal, toast } from "./data.js";
+  taskDoneOn, repeatLabel, areaTag, profOf, ordinal, toast, ensureSection } from "./data.js";
 
+let _projects=[];
+function taskSort(x,y){return ((x.repeat?0:(x.done?1:0))-(y.repeat?0:(y.done?1:0)))||((x.createdAt||0)-(y.createdAt||0));}
 export function renderTasks(){
-  const members=S.house.members||[];const secs=S.state.taskSections||{};
-  const areas=[...members.map(u=>({key:u,label:profOf(u).name,mine:u===S.user.uid})),{key:"together",label:"Together",mine:true}];
-  $("task-areas").innerHTML=areas.map(a=>{
-    const list=secs[a.key]||[];
-    const inner=list.map(sec=>{
-      const tasks=S.items.filter(i=>i.kind==="task"&&i.area===a.key&&i.sectionId===sec.id)
-        .sort((x,y)=>((x.repeat?0:(x.done?1:0))-(y.repeat?0:(y.done?1:0)))||((x.createdAt||0)-(y.createdAt||0)));
-      return `<div style="margin-bottom:16px">
-        <div class="sec-row" style="margin-bottom:4px"><div style="display:flex;align-items:center;gap:8px"><span class="emoji" style="width:auto">${sec.emoji||"📌"}</span><b style="font-size:13.5px;letter-spacing:.04em;color:var(--sage-deep)">${esc(sec.name)}</b></div>
-        <button class="x" onclick="rmSection('${a.key}','${sec.id}')">×</button></div>
-        ${tasks.map(taskRow).join("")||'<div class="empty">No tasks.</div>'}
-      </div>`;}).join("");
-    return `<div class="card"><h2 class="sec" style="color:${a.key==="together"?"var(--ink)":a.mine?"var(--sage-deep)":"var(--wheat)"}">${esc(a.label)}</h2>
-      ${inner||'<div class="empty">No categories yet — tap + Category above.</div>'}</div>`;
-  }).join("");
+  const members=S.house.members||[];const secsByArea=S.state.taskSections||{};
+  /* projects = union of every section across all areas, merged by name */
+  const seen={};_projects=[];
+  Object.keys(secsByArea).forEach(area=>(secsByArea[area]||[]).forEach(sec=>{
+    const k=(sec.name||"").toLowerCase().trim();
+    if(!seen[k]){seen[k]={name:sec.name,emoji:sec.emoji||"📌",ids:[]};_projects.push(seen[k]);}
+    seen[k].ids.push(sec.id);
+    if(sec.emoji&&seen[k].emoji==="📌")seen[k].emoji=sec.emoji;
+  }));
+  const knownIds=new Set(_projects.flatMap(p=>p.ids));
+  const groups=[{key:S.user.uid,label:profOf(S.user.uid).name},
+    ...members.filter(u=>u!==S.user.uid).map(u=>({key:u,label:profOf(u).name})),
+    {key:"together",label:"Together"}];
+  const projectCard=(pr,idx,tasks)=>{
+    const inner=groups.map(g=>{
+      const ts=tasks.filter(t=>t.area===g.key).sort(taskSort);
+      if(!ts.length)return "";
+      return `<div class="fin-cat" style="color:${g.key==="together"?"var(--ink)":g.key===S.user.uid?"var(--sage-deep)":"var(--wheat)"}">${esc(g.label)}</div>`+ts.map(taskRow).join("");
+    }).join("");
+    return `<div class="card"><div class="sec-row"><div style="display:flex;align-items:center;gap:8px"><span class="emoji" style="width:auto">${pr.emoji}</span><h2 class="sec" style="margin:0">${esc(pr.name)}</h2></div>
+      ${idx>=0?`<button class="x" onclick="rmProject(${idx})">×</button>`:""}</div>
+      ${inner||'<div class="empty">No tasks yet.</div>'}</div>`;
+  };
+  let html=_projects.map((pr,idx)=>projectCard(pr,idx,S.items.filter(i=>i.kind==="task"&&pr.ids.includes(i.sectionId)))).join("");
+  const orphans=S.items.filter(i=>i.kind==="task"&&!knownIds.has(i.sectionId));
+  if(orphans.length)html+=projectCard({name:"Unsorted",emoji:"🗂",ids:[]},-1,orphans);
+  $("task-areas").innerHTML=html||'<div class="card"><div class="empty">No projects yet — tap + Category above.</div></div>';
 }
 function taskRow(t){
   const today=todayS();const on=taskDoneOn(t,today);
@@ -118,9 +132,7 @@ window.quickAddParse=()=>{
 };
 window.quickAddConfirm=()=>{
   const p=window._qaPending; if(!p)return;
-  const secs=S.state.taskSections||{};
-  let sec=(secs[p.area]||[])[0];
-  if(!sec){ sec={id:rid(),name:"General",emoji:"📌"}; saveField("taskSections."+p.area,(secs[p.area]||[]).concat([sec])); }
+  const sec=ensureSection(p.area,"");
   const data={kind:"task",text:p.text,area:p.area,sectionId:sec.id,due:p.due||"",repeat:p.repeat,doneDates:{},done:false};
   if(p.when) data.whenHint=p.when;
   addItem(data);
@@ -172,16 +184,24 @@ window.taskMode=(v)=>{
   $("m-t-dom-wrap").style.display=v==="monthly"?"":"none";
 };
 window.taskAreaChange=(selId)=>{
-  const area=$("m-t-area").value;const secs=(S.state.taskSections||{})[area]||[];
-  $("m-t-sec").innerHTML=secs.map(x=>`<option value="${x.id}" ${x.id===selId?"selected":""}>${x.emoji||""} ${esc(x.name)}</option>`).join("")+'<option value="__none">(General)</option>';
-  if(!secs.length)$("m-t-sec").value="__none";
+  const secsByArea=S.state.taskSections||{};
+  const seen={};const all=[];
+  Object.keys(secsByArea).forEach(area=>(secsByArea[area]||[]).forEach(x=>{
+    const k=(x.name||"").toLowerCase().trim();
+    if(!seen[k]){seen[k]=true;all.push(x);}
+    else if(selId&&x.id===selId){all.push(x);}
+  }));
+  $("m-t-sec").innerHTML=all.map(x=>`<option value="${x.id}" ${x.id===selId?"selected":""}>${x.emoji||""} ${esc(x.name)}</option>`).join("")+'<option value="__none">(General)</option>';
+  if(!all.length)$("m-t-sec").value="__none";
 };
 window.saveTaskModal=(editId)=>{
   const text=$("m-t-text").value.trim();if(!text)return;
   const area=$("m-t-area").value;let sectionId=$("m-t-sec").value;
   if(sectionId==="__none"){
-    const secs=S.state.taskSections||{};let gen=(secs[area]||[]).find(x=>x.name==="General");
-    if(!gen){gen={id:rid(),name:"General",emoji:"📌"};saveField("taskSections."+area,(secs[area]||[]).concat([gen]));}
+    const secs=S.state.taskSections||{};
+    let gen=null;
+    Object.keys(secs).forEach(a=>{const hit=(secs[a]||[]).find(x=>(x.name||"").toLowerCase()==="general");if(hit&&!gen)gen=hit;});
+    if(!gen){gen={id:rid(),name:"General",emoji:"📌"};saveField("taskSections.together",(secs.together||[]).concat([gen]));}
     sectionId=gen.id;
   }
   const rv=$("m-t-mode").dataset.v;
@@ -196,27 +216,27 @@ window.saveTaskModal=(editId)=>{
   window.closeModal();
 };
 window.openCategoryModal=()=>{
-  const members=S.house.members||[];
-  const opts=[...members.map(u=>[u,profOf(u).name]),["together","Together"]];
-  const defA=opts.find(([v])=>v===S.user.uid)?S.user.uid:opts[0][0];
-  window.openModal(`<h3>New category</h3>
-    <label class="f">For</label>
-    <div class="pills" id="m-cat-for" data-v="${defA}">${opts.map(([v,l])=>`<button class="pill ${v===defA?"on":""}" data-a="${v}" onclick="catForPick('${v}')">${esc(l)}</button>`).join("")}</div>
-    <label class="f">Category name</label><input id="m-cat-name" placeholder="e.g. Household — Career & Goals — Pets">
+  window.openModal(`<h3>New project</h3>
+    <label class="f">Project name</label><input id="m-cat-name" placeholder="e.g. Household — Ponte Vedra — Pets">
     <label class="f">Emoji</label><input id="m-cat-emoji" placeholder="🎯" maxlength="4">
     <div class="actions"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" onclick="createCategory()">Add</button></div>`);
 };
-window.catForPick=(v)=>{$("m-cat-for").dataset.v=v;document.querySelectorAll("#m-cat-for .pill").forEach(b=>b.classList.toggle("on",b.dataset.a===v));};
 window.createCategory=()=>{
-  const name=$("m-cat-name").value.trim();if(!name)return toast("Name the category first");
-  const area=$("m-cat-for").dataset.v;
+  const name=$("m-cat-name").value.trim();if(!name)return toast("Name the project first");
   const secs=S.state.taskSections||{};
-  const list=(secs[area]||[]).concat([{id:rid(),name,emoji:$("m-cat-emoji").value.trim()||"📌"}]);
-  saveField("taskSections."+area,list);window.closeModal();toast("Category added");
+  const exists=Object.keys(secs).some(a=>(secs[a]||[]).some(x=>(x.name||"").toLowerCase().trim()===name.toLowerCase()));
+  if(exists)return toast("A project with that name already exists");
+  saveField("taskSections.together",(secs.together||[]).concat([{id:rid(),name,emoji:$("m-cat-emoji").value.trim()||"📌"}]));
+  window.closeModal();toast("Project added");
 };
-window.rmSection=(area,sid)=>{
-  window.confirmModal("Delete this list and its tasks?",()=>{
-    const secs=S.state.taskSections||{};saveField("taskSections."+area,(secs[area]||[]).filter(x=>x.id!==sid));
-    S.items.filter(i=>i.kind==="task"&&i.sectionId===sid).forEach(t=>delItem(t.id));
+window.rmProject=(idx)=>{
+  const pr=_projects[idx];if(!pr)return;
+  window.confirmModal(`Delete "${pr.name}" and every task in it — yours and theirs?`,()=>{
+    const secs=S.state.taskSections||{};
+    Object.keys(secs).forEach(a=>{
+      const kept=(secs[a]||[]).filter(x=>!pr.ids.includes(x.id));
+      if(kept.length!==(secs[a]||[]).length)saveField("taskSections."+a,kept);
+    });
+    S.items.filter(i=>i.kind==="task"&&pr.ids.includes(i.sectionId)).forEach(t=>delItem(t.id));
   });
 };
