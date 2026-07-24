@@ -12,12 +12,12 @@ export const FIREBASE_CONFIG = {
   appId: "1:321629125374:web:3130956b0be69f921383af"
 };
 export const GOOGLE_CLIENT_ID = "321629125374-jqeuba99c0gm7qb4ja9q47pmkc5j8674.apps.googleusercontent.com";
- 
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, setDoc, updateDoc, deleteDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
- 
+
 /* ---------------- liturgical engine (season is a text detail now, not the theme) ---------------- */
 export function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;return new Date(y,mo-1,da);}
 export function addD(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
@@ -39,7 +39,7 @@ export function season(d){
   if(cmp(t,xmas)>=0) return {name:"Christmas"};
   return {name:"Ordinary Time"};
 }
- 
+
 /* ---------------- constants (ported verbatim from v3) ---------------- */
 export const SAINTS={ "01-01":"Mary, Mother of God","01-02":"Ss. Basil & Gregory Nazianzen","01-04":"St. Elizabeth Ann Seton","01-05":"St. John Neumann","01-17":"St. Anthony of Egypt","01-21":"St. Agnes","01-24":"St. Francis de Sales","01-25":"Conversion of St. Paul","01-26":"Ss. Timothy & Titus","01-28":"St. Thomas Aquinas","01-31":"St. John Bosco",
 "02-02":"Presentation of the Lord","02-03":"St. Blaise","02-05":"St. Agatha","02-06":"St. Paul Miki & Companions","02-10":"St. Scholastica","02-11":"Our Lady of Lourdes","02-14":"Ss. Cyril & Methodius","02-22":"Chair of St. Peter","02-23":"St. Polycarp",
@@ -68,7 +68,7 @@ export const EXAMEN_Q=["Where did I meet Christ in the people I encountered toda
 export const DEFAULT_PRACTICES=[{id:"p1",name:"Morning Offering",emoji:"🙏",time:"07:00",mins:5,days:[0,1,2,3,4,5,6]},{id:"p2",name:"Holy Mass",emoji:"✝️",time:"08:00",mins:60,days:[0,1,2,3,4,5,6]},{id:"p3",name:"Angelus",emoji:"🔔",time:"12:00",mins:5,days:[0,1,2,3,4,5,6]},{id:"p4",name:"Holy Rosary",emoji:"📿",time:"19:00",mins:20,days:[0,1,2,3,4,5,6]},{id:"p5",name:"Evening Examen",emoji:"🕯️",time:"21:00",mins:10,days:[0,1,2,3,4,5,6]}];
 export const DEFAULT_PLAN=[{id:"pl1",text:"Daily Mass"},{id:"pl2",text:"Holy Rosary"},{id:"pl3",text:"Spiritual reading 15 min"},{id:"pl4",text:"Weekly confession"}];
 export const VIRTUES=["Faith","Hope","Charity","Prudence","Justice","Fortitude","Temperance","Humility","Patience","Chastity","Diligence","Kindness","Generosity","Meekness","Gratitude","Obedience","Perseverance","Silence & Recollection"];
- 
+
 /* ---------------- tiny utils ---------------- */
 export const $=id=>document.getElementById(id);
 export const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -84,13 +84,13 @@ export function setVal(id,v){const el=$(id);if(el&&document.activeElement!==el)e
 export function fmtMins(m){if(m<60)return m+" min";const h=Math.floor(m/60);return h+"h"+(m%60?" "+(m%60)+"m":"");}
 export function ordinal(n){const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
 export const DOWS=["Su","Mo","Tu","We","Th","Fr","Sa"];
- 
+
 /* ---------------- app state + render bus ---------------- */
 export const S={user:null,profile:null,hid:null,house:null,state:{},items:[],selDate:todayS(),calCursor:new Date(),mealDay:(new Date().getDay()+6)%7,calFilter:"all",faithTab:"rhythm",shareRefl:false,ci:{scale:0,pray:null,date:null},sdIdx:null,gcalToken:null,gcalConnected:false,unsubs:[]};
 window.S=S;
 /* views register their render functions on the bus; app.js drives it */
 export const bus={render:()=>{}};
- 
+
 /* ---------------- firebase ---------------- */
 export const app=initializeApp(FIREBASE_CONFIG);
 export const auth=getAuth(app);
@@ -99,7 +99,7 @@ try{_db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:per
 catch(e){_db=initializeFirestore(app,{});}
 export const db=_db;
 export const provider=new GoogleAuthProvider();
- 
+
 /* ---------------- write helpers ---------------- */
 export const stateRef=()=>doc(db,"households",S.hid,"state","main");
 export const itemsCol=()=>collection(db,"households",S.hid,"items");
@@ -109,13 +109,13 @@ export function addItem(data){return addDoc(itemsCol(),{...data,owner:S.user.uid
 export function updItem(id,data){return updateDoc(doc(db,"households",S.hid,"items",id),data).catch(e=>toast(e.message));}
 export function delItem(id){return deleteDoc(doc(db,"households",S.hid,"items",id)).catch(e=>toast(e.message));}
 window.delItem=delItem;window.updItem=updItem;
- 
+
 export const partnerUid=()=>(S.house?.members||[]).find(m=>m!==S.user.uid);
 export const partnerName=()=>{const u=partnerUid();return u?profOf(u).name:"your spouse";};
 export const profOf=u=>S.house?.profiles?.[u]||{name:"—",initials:"·"};
 export const isMine=it=>it.owner===S.user.uid;
 export const tagCls=it=>isMine(it)?"":"p2";
- 
+
 /* ---------------- recurrence engine ---------------- */
 export function scheduledToday(p,d){const dt=d||new Date();return(p.days||[]).includes(dt.getDay());}
 export function doneSet(dateS){return new Set(((S.state.rhythmDone||{})[dateS]||{})[S.user.uid]||[]);}
@@ -151,19 +151,21 @@ export function areaTag(t){
   const p=profOf(t.area);return `<span class="owner-tag ${t.area===S.user.uid?"":"p2"}">${esc(p.initials)}</span>`;
 }
 export function ensureSection(area,name){
-  /* find (or create) a task section in the given area; loose name match */
-  const secs=(S.state.taskSections||{})[area]||[];
+  /* projects are household-wide: match by name across every area; create under "together" */
+  const byArea=S.state.taskSections||{};
+  const all=Object.keys(byArea).flatMap(a=>byArea[a]||[]);
   const nm=(name||"").toLowerCase().trim();
-  let sec=nm?secs.find(s=>(s.name||"").toLowerCase().includes(nm)||nm.includes((s.name||"").toLowerCase())):null;
-  if(!sec)sec=secs[0];
+  let sec=nm?all.find(s=>(s.name||"").toLowerCase().includes(nm)||nm.includes((s.name||"").toLowerCase())):null;
+  if(!sec)sec=all.find(s=>(s.name||"").toLowerCase()==="general")||all[0];
   if(!sec){
     const label=name?name.charAt(0).toUpperCase()+name.slice(1):"General";
     sec={id:rid(),name:label,emoji:"📌"};
-    saveField("taskSections."+area,secs.concat([sec]));
+    saveField("taskSections.together",(byArea.together||[]).concat([sec]));
   }
   return sec;
 }
- 
+
+
 /* ---------------- prayer library (traditional texts, tap-to-pray) ---------------- */
 const P_HAILMARY="Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.";
 export const PRAYER_LIB=[
