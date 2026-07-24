@@ -109,7 +109,7 @@ function cmpApply(actions){
         saveField("practices",list);
         chips.push({label:hit?("✓ "+hit+" adjusted"):("— couldn't find "+(a.name||"that practice"))});
       } else if(a.op==="create_event"){
-        addItem({kind:"event",title:a.title||"Event",date:a.date||todayS(),time:a.time||"",endTime:a.endTime||"",area:"together",tier:a.tier||""});
+        addItem({kind:"event",title:a.title||"Event",date:a.date||todayS(),time:a.time||"",endTime:a.endTime||"",area:a.tier==="family"?"together":S.user.uid,tier:a.tier||""});
         chips.push({label:"✓ Event · "+(a.title||"")+(a.time?" · "+fmtT(a.time):"")});
       } else if(a.op==="create_task"){
         const area=resolveArea(a.assignee||a.area);
