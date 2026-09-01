@@ -1,0 +1,126 @@
+rules_version = '2';
+
+/* Vita Plena — Firestore security rules
+   Source of truth. Edit here, review in a PR, then publish.
+   (No `firebase deploy` in the pipeline yet — Phase 1.1 adds CLI deploy from CI.
+   Until then, publishing means pasting this file into the Firebase console.)
+
+   Data model: users/{uid}, invites/{code}, households/{hid}/{state,items,meta,briefings}
+   Principle: a household is a closed room. You get in by invite code, and once
+   inside you can read and write everything in that room and nothing outside it.
+
+   Fail-closed by design: the catch-all deny at the bottom means any collection
+   added later (orgs, notifications, devices) is unreachable until it gets a
+   deliberate rule here. */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Membership for subcollections, where members[] isn't on the document itself.
+    function isMemberOf(hid) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.members;
+    }
+
+    /* ---- users/{uid} — your own pointer record { hid, name, initials } ---- */
+    match /users/{uid} {
+      // Only you may read or write your own user document; nobody can enumerate users.
+      allow read, write: if signedIn() && request.auth.uid == uid;
+
+      /* users/{uid}/private/** — server-only secrets (Google OAuth refresh tokens, task 1.5).
+         Never readable or writable by any client, including the user who owns it.
+         The Admin SDK bypasses rules, which is the only way this data is touched. */
+      match /private/{docId} {
+        allow read, write: if false;
+      }
+    }
+
+    /* ---- invites/{code} — the 6-character code -> household ID lookup ---- */
+    match /invites/{code} {
+      // Any signed-in user may look up a code they already know (this is the join handshake).
+      allow get: if signedIn();
+
+      // Nobody may list the collection — this is what stops bulk harvesting of household IDs.
+      allow list: if false;
+
+      // A code may only be created by someone who is already a member of the household it points to.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['hid'])
+        && request.auth.uid in
+             get(/databases/$(database)/documents/households/$(request.resource.data.hid)).data.members;
+
+      // Codes are immutable from the client; regeneration moves to the admin function (task 1.4).
+      allow update, delete: if false;
+    }
+
+    /* ---- households/{hid} — the household record itself ---- */
+    match /households/{hid} {
+      // Only current members may read the household document.
+      allow get: if signedIn() && request.auth.uid in resource.data.members;
+
+      // Nobody may list households — there is no legitimate "browse all households" query.
+      allow list: if false;
+
+      // You may create a household only with yourself as the sole member and sole profile.
+      allow create: if signedIn()
+        && request.resource.data.members == [request.auth.uid]
+        && request.resource.data.profiles.keys().hasOnly([request.auth.uid]);
+
+      /* Members may edit household fields (name, countdown, profiles, people) but never
+         the roster and never the subscription — entitlements are written by the Stripe /
+         RevenueCat webhooks via the Admin SDK only (Phase 5). A client that can write
+         `subscription` can grant itself a paid plan. */
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.members
+        && request.resource.data.members == resource.data.members
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription']);
+
+      // Joining: a non-member may add ONLY themselves to members, and ONLY their own profile.
+      allow update: if signedIn()
+        && !(request.auth.uid in resource.data.members)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'profiles'])
+        && request.resource.data.members == resource.data.members.concat([request.auth.uid])
+        && request.resource.data.profiles.diff(resource.data.profiles)
+             .affectedKeys().hasOnly([request.auth.uid]);
+
+      // No client-side household deletion; the admin function (task 1.4) cascades it properly.
+      allow delete: if false;
+
+      /* ---- households/{hid}/state/main — practices, plan, meals, finance, everything ---- */
+      match /state/{docId} {
+        // Full read/write for members only, checked by a lookup on the parent household.
+        allow read, write: if isMemberOf(hid);
+      }
+
+      /* ---- households/{hid}/items/{id} — events and tasks ---- */
+      match /items/{itemId} {
+        // Members may read and write all items; per-user filtering is a UI concern, not a security one.
+        allow read, write: if isMemberOf(hid);
+      }
+
+      /* ---- households/{hid}/meta/{doc} — server-owned counters (AI usage quotas, task 1.3) ---- */
+      match /meta/{docId} {
+        // Members may read their usage; only the server may write, or the quota is self-serve.
+        allow read: if isMemberOf(hid);
+        allow write: if false;
+      }
+
+      /* ---- households/{hid}/briefings/{date} — Sunday briefings (task 3.3) ---- */
+      match /briefings/{docId} {
+        // Members may read briefings; only the scheduled function writes them.
+        allow read: if isMemberOf(hid);
+        allow write: if false;
+      }
+    }
+
+    /* ---- everything else ---- */
+    match /{document=**} {
+      // Explicit deny for any path not named above; new collections must be added deliberately.
+      allow read, write: if false;
+    }
+  }
+}
