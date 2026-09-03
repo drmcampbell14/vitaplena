@@ -1,7 +1,8 @@
 /* VITA PLENA v4 — app.js — boot, auth, onboarding, navigation, render loop */
 import { $, esc, rid, uid6, todayS, S, bus, db, auth, provider,
   DEFAULT_PRACTICES, DEFAULT_PLAN, saveKey, saveField, toast } from "./core/data.js";
-import { signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut }
+import { signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail }
   from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection, onSnapshot, arrayUnion, serverTimestamp }
   from "firebase/firestore";
@@ -32,10 +33,99 @@ function renderHeader(){
   $("hdr-avatars").innerHTML=members.map(m=>{const p=profOf(m);return `<div class="av ${m===S.user.uid?"me":""}" title="${esc(p.name)}">${esc(p.initials)}</div>`;}).join("");
 }
 
-/* ---------------- auth gate ---------------- */
+/* ---------------- auth gate ----------------
+   Email + password is the primary sign-in (a Vita Plena account, no Google involved).
+   Google stays as a secondary option. Both produce the same Firebase user, and the
+   onboarding flow below doesn't care which one was used.
+
+   Note for existing users: an email/password account is a *different* Firebase user
+   than a Google account with the same address. Account linking is a later task;
+   until then, whoever signed up with Google should keep signing in with Google. */
+
+/** Firebase error codes -> sentences a person can act on. Anything unlisted gets a generic line. */
+const AUTH_MESSAGES={
+  "auth/invalid-email":"That doesn't look like an email address.",
+  "auth/missing-email":"Enter your email.",
+  "auth/missing-password":"Enter your password.",
+  "auth/weak-password":"Use at least 8 characters.",
+  "auth/email-already-in-use":"That email already has an account. Sign in instead.",
+  "auth/user-not-found":"No account with that email. Create one below.",
+  "auth/wrong-password":"That password isn't right.",
+  "auth/invalid-credential":"Email or password isn't right.",
+  "auth/invalid-login-credentials":"Email or password isn't right.",
+  "auth/user-disabled":"This account has been disabled. Contact support.",
+  "auth/too-many-requests":"Too many tries. Wait a minute, or reset your password.",
+  "auth/operation-not-allowed":"Email sign-in isn't switched on for this app yet. Use Google for now.",
+  "auth/network-request-failed":"No connection. Check your network and try again.",
+  "auth/popup-closed-by-user":"The Google window was closed before finishing.",
+  "auth/account-exists-with-different-credential":"That email is already registered another way. Try the other sign-in option."
+};
+const authMessage=e=>AUTH_MESSAGES[e?.code]||"Something went wrong. Try again in a moment.";
+
+let authMode="signin"; // "signin" | "signup"
+const AUTH_COPY={
+  signin:{submit:"Sign in",toggle:"New here? Create an account",passAuto:"current-password"},
+  signup:{submit:"Create account",toggle:"Already have an account? Sign in",passAuto:"new-password"}
+};
+function setAuthMode(mode){
+  authMode=mode;
+  const c=AUTH_COPY[mode];
+  $("auth-submit").textContent=c.submit;
+  $("auth-toggle").textContent=c.toggle;
+  $("auth-pass").setAttribute("autocomplete",c.passAuto);
+  $("auth-err").textContent="";
+}
+function setAuthBusy(busy){
+  $("auth-submit").disabled=busy;
+  $("btn-google").disabled=busy;
+}
+
+if($("auth-form")){
+  setAuthMode("signin");
+  $("auth-toggle").onclick=()=>setAuthMode(authMode==="signin"?"signup":"signin");
+
+  $("auth-form").onsubmit=async(ev)=>{
+    ev.preventDefault();
+    const email=$("auth-email").value.trim(), pass=$("auth-pass").value;
+    const err=$("auth-err");
+    err.textContent="";
+    if(!email)return err.textContent=AUTH_MESSAGES["auth/missing-email"];
+    if(!pass)return err.textContent=AUTH_MESSAGES["auth/missing-password"];
+    if(authMode==="signup"&&pass.length<8)return err.textContent=AUTH_MESSAGES["auth/weak-password"];
+    setAuthBusy(true);
+    try{
+      if(authMode==="signup")await createUserWithEmailAndPassword(auth,email,pass);
+      else await signInWithEmailAndPassword(auth,email,pass);
+      // onAuthStateChanged takes it from here.
+    }catch(e){
+      err.textContent=authMessage(e);
+      // A sign-in against an unknown address is almost always someone who meant to sign up.
+      if(authMode==="signin"&&e?.code==="auth/user-not-found")setAuthMode("signup"),err.textContent=AUTH_MESSAGES["auth/user-not-found"];
+    }finally{setAuthBusy(false);}
+  };
+
+  $("auth-forgot").onclick=async()=>{
+    const email=$("auth-email").value.trim();
+    const err=$("auth-err");
+    if(!email)return err.textContent="Enter your email above first, then tap Forgot password.";
+    setAuthBusy(true);
+    try{
+      await sendPasswordResetEmail(auth,email);
+      err.textContent="";
+      toast("Reset link sent to "+email);
+    }catch(e){err.textContent=authMessage(e);}
+    finally{setAuthBusy(false);}
+  };
+}
+
 if($("btn-google"))$("btn-google").onclick=async()=>{
+  const err=$("auth-err");if(err)err.textContent="";
   try{await signInWithPopup(auth,provider);}
-  catch(e){ if(e.code==="auth/popup-blocked"||e.code==="auth/popup-closed-by-user"||e.code==="auth/cancelled-popup-request"){try{await signInWithRedirect(auth,provider);}catch(e2){toast(e2.message);}} else toast(e.message);}
+  catch(e){
+    if(e.code==="auth/popup-blocked"||e.code==="auth/cancelled-popup-request"){
+      try{await signInWithRedirect(auth,provider);}catch(e2){if(err)err.textContent=authMessage(e2);else toast(e2.message);}
+    } else if(err)err.textContent=authMessage(e); else toast(e.message);
+  }
 };
 getRedirectResult(auth).catch(()=>{});
 $("btn-signout-ob").onclick=()=>signOut(auth);

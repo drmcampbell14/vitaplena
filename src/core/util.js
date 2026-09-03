@@ -1,6 +1,7 @@
 /* Vita Plena — small shared helpers. Nothing here touches the DOM at import time,
    so this module is safe to load in Node for tests. $/toast/setVal use `document`
    only when called. */
+import { ymd } from "./liturgical.js";
 
 export const $=id=>document.getElementById(id);
 export const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

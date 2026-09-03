@@ -328,6 +328,19 @@ nav.tabbar button.on .ico-fill{fill:var(--sage-tint)}
 #gate .or::before,#gate .or::after{content:"";flex:1;height:1px;background:rgba(247,244,238,.3)}
 #gate .btn.gold{width:100%;background:var(--bone);color:var(--sage-deep)}
 #gate .signout-mini{margin-top:22px;font-size:12.5px;opacity:.55;text-decoration:underline}
+
+/* sign-in gate: email form is primary, Google is the quiet secondary option */
+#gate-signin .tag{margin-bottom:22px}
+#gate .auth{margin-bottom:2px}
+#gate .auth input+label.f{margin-top:12px}
+#gate .auth .btn.gold{margin-top:4px}
+#gate .auth-err{min-height:18px;font-size:13px;line-height:1.35;color:#F3C9B5;margin:8px 0 6px}
+#gate .auth-links{display:flex;justify-content:space-between;gap:12px;margin-top:12px;font-size:13px}
+#gate .auth-links .link{opacity:.75;text-decoration:underline;padding:0;text-align:left}
+#gate .auth-links .link:hover{opacity:1}
+#gate .or{margin:16px 0}
+#gate .gbtn.secondary{background:transparent;color:#F1EFE6;border:1px solid rgba(247,244,238,.35);font-weight:500;padding:12px 22px}
+#gate .gbtn.secondary:disabled,#gate .auth .btn:disabled{opacity:.5;cursor:default}
 #loading{position:fixed;inset:0;z-index:110;background:var(--sage-deep);display:flex;align-items:center;justify-content:center;color:#BFDCC8;font-family:var(--disp);font-style:italic;font-size:18px;transition:opacity .3s}
 #loading.hide{opacity:0;pointer-events:none}
 .spin{width:22px;height:22px;border:2.5px solid rgba(203,211,184,.3);border-top-color:#BFDCC8;border-radius:50%;margin-right:12px;animation:sp 1s linear infinite}
