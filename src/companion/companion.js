@@ -4,7 +4,7 @@ import { $, esc, rid, fmtT, todayS, ymd, addD, S, saveField, addItem, updItem, d
   ensureSection, partnerName, profOf, toast, bus } from "../core/data.js";
 import { syncGcal } from "../lib/gcal.js";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../core/data.js";
+import { db, auth } from "../core/data.js";
 
 const CMP_ENDPOINT="/.netlify/functions/companion";
 
@@ -50,10 +50,20 @@ window.cmpSend=async()=>{
   if(cmpHistory.length>12) cmpHistory=cmpHistory.slice(-12);
   const typing=cmpAdd("ordering the day…","cmp-typing");
   try{
-    const r=await fetch(CMP_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+    /* The function verifies this token server-side and refuses calls without one,
+       so the Anthropic key is only ever spent on signed-in members of a household. */
+    const token=await auth.currentUser?.getIdToken().catch(()=>null);
+    if(!token){ typing.remove(); cmpAdd("You've been signed out. Sign in again and I'll pick this back up.","cmp-bot"); $("cmp-send").disabled=false; return; }
+    const r=await fetch(CMP_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
       body:JSON.stringify({text,state:cmpState(),history:cmpHistory.slice(0,-1)})});
     typing.remove();
-    if(!r.ok){ const e=await r.json().catch(()=>({})); cmpAdd("I couldn't reach you just now. "+(e.error||"")+" Try again in a moment.","cmp-bot"); $("cmp-send").disabled=false; return; }
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      const msg=r.status===401?"Your session has expired. Sign out and back in, then try again."
+        :r.status===403?"This account isn't part of a household yet. Set one up in Settings."
+        :e.say||("I couldn't reach you just now. "+(e.error||"")+" Try again in a moment.");
+      cmpAdd(esc(msg),"cmp-bot"); $("cmp-send").disabled=false; return;
+    }
     const data=await r.json();
     if(data.say){ cmpAdd(esc(data.say),"cmp-bot"); cmpSpeak(data.say); cmpHistory.push({role:"assistant",content:data.say}); }
     if(data.actions&&data.actions.length){
