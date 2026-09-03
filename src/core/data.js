@@ -13,10 +13,10 @@ export const FIREBASE_CONFIG = {
 };
 export const GOOGLE_CLIENT_ID = "321629125374-jqeuba99c0gm7qb4ja9q47pmkc5j8674.apps.googleusercontent.com";
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  doc, setDoc, updateDoc, deleteDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  doc, setDoc, updateDoc, deleteDoc, addDoc, collection } from "firebase/firestore";
 
 /* ---------------- liturgical engine (season is a text detail now, not the theme) ---------------- */
 export function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;return new Date(y,mo-1,da);}

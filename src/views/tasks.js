@@ -1,6 +1,6 @@
 /* VITA PLENA v4 — views/tasks.js — tasks, sections, quick-add parser, task modal */
 import { $, esc, rid, fmtT, todayS, ymd, addD, S, DOWS, saveField, addItem, updItem, delItem,
-  taskDoneOn, repeatLabel, areaTag, profOf, ordinal, toast, ensureSection } from "./data.js";
+  taskDoneOn, repeatLabel, areaTag, profOf, ordinal, toast, ensureSection } from "../core/data.js";
 
 let _projects=[];
 function taskSort(x,y){return ((x.repeat?0:(x.done?1:0))-(y.repeat?0:(y.done?1:0)))||((x.createdAt||0)-(y.createdAt||0));}

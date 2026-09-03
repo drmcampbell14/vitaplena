@@ -1,5 +1,5 @@
 /* VITA PLENA v4 — gcal.js — Google Calendar sync (pull; two-way arrives in step 3) */
-import { GOOGLE_CLIENT_ID, S, ymd, addD, addItem, updItem, delItem, toast, bus } from "./data.js";
+import { GOOGLE_CLIENT_ID, S, ymd, addD, addItem, updItem, delItem, toast, bus } from "../core/data.js";
 
 let tokenClient=null;
 function gisReady(){return typeof google!=="undefined"&&google.accounts&&google.accounts.oauth2;}

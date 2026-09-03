@@ -1,6 +1,6 @@
 /* VITA PLENA v4 — views/settings.js */
-import { $, esc, S, db, setVal, profOf, toast } from "./data.js";
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { $, esc, S, db, setVal, profOf, toast } from "../core/data.js";
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
  
 export function renderSettings(){
   $("member-list").innerHTML=(S.house.members||[]).map(u=>{const p=profOf(u);return `<div class="member-row"><div class="big-av ${u===S.user.uid?"":"p2"}">${esc(p.initials)}</div><div class="grow"><div class="title">${esc(p.name)}${u===S.user.uid?" (you)":""}</div></div></div>`;}).join("");

@@ -1,10 +1,21 @@
+# Vita Plena — Netlify configuration
+# Build: Vite compiles index.html + src/ into dist/. Functions are bundled from
+# netlify/functions with esbuild and can use dependencies from package.json.
+# Branch deploys of the v5 build run alongside production (main) at
+#   https://<branch-name>--vitaplena13.netlify.app
+
 [build]
-  publish = "."
+  command = "npm run build"
+  publish = "dist"
   functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
 
 [functions]
   node_bundler = "esbuild"
 
+# Single-page app: every path serves index.html; the app routes client-side.
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -1,6 +1,6 @@
 /* VITA PLENA v4 — views/calendar.js */
 import { $, esc, fmtT, todayS, ymd, addD, S, SAINTS, DOWS, addItem, delItem,
-  taskOccursOn, profOf, tagCls } from "./data.js";
+  taskOccursOn, profOf, tagCls } from "../core/data.js";
 import { agendaTask } from "./today.js";
 
 function eventsOn(dateS){

@@ -1,6 +1,6 @@
 /* VITA PLENA v4 — views/extras.js — Meals & Grocery, Finance, Family & Pets, Notes (drawer pages) */
 import { $, esc, rid, money, todayS, S, saveKey, saveField, addItem, updItem, delItem,
-  isMine, setVal, debounce, toast } from "./data.js";
+  isMine, setVal, debounce, toast } from "../core/data.js";
 
 /* ---- MEALS ---- */
 export function renderMeals(){

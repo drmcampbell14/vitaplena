@@ -1,0 +1,18 @@
+# dependencies and build output
+node_modules/
+dist/
+
+# netlify local state
+.netlify/
+
+# secrets never live in the repo; they live in Netlify env vars
+.env
+.env.*
+*-firebase-adminsdk-*.json
+service-account*.json
+
+# editor and OS noise
+.DS_Store
+.vscode/
+.idea/
+*.log

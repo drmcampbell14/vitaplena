@@ -1,10 +1,10 @@
 /* VITA PLENA v4 — companion.js — the AI front door.
    Chat UI + state snapshot + direct action executor with confirmation chips. */
 import { $, esc, rid, fmtT, todayS, ymd, addD, S, saveField, addItem, updItem, delItem,
-  ensureSection, partnerName, profOf, toast, bus } from "./data.js";
-import { syncGcal } from "./gcal.js";
-import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { db } from "./data.js";
+  ensureSection, partnerName, profOf, toast, bus } from "../core/data.js";
+import { syncGcal } from "../lib/gcal.js";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../core/data.js";
 
 const CMP_ENDPOINT="/.netlify/functions/companion";
 

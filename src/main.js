@@ -1,19 +1,19 @@
 /* VITA PLENA v4 — app.js — boot, auth, onboarding, navigation, render loop */
 import { $, esc, rid, uid6, todayS, S, bus, db, auth, provider,
-  DEFAULT_PRACTICES, DEFAULT_PLAN, saveKey, saveField, toast } from "./data.js";
+  DEFAULT_PRACTICES, DEFAULT_PLAN, saveKey, saveField, toast } from "./core/data.js";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection, onSnapshot, arrayUnion, serverTimestamp }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { renderHome } from "./today.js";
-import { renderCalendar, wireCalendarInputs } from "./calendar.js";
-import { renderTasks } from "./tasks.js";
-import { renderFaith, loadReadings, renderPrayerCard } from "./faith.js";
-import { renderUs, wireUs } from "./us.js";
-import { renderMeals, renderFinance, renderFamily, renderNotes, wireMeals } from "./extras.js";
-import { renderSettings } from "./settings.js";
-import { loadGis } from "./gcal.js";
-import "./companion.js";
+  from "firebase/firestore";
+import { renderHome } from "./views/today.js";
+import { renderCalendar, wireCalendarInputs } from "./views/calendar.js";
+import { renderTasks } from "./views/tasks.js";
+import { renderFaith, loadReadings, renderPrayerCard } from "./views/faith.js";
+import { renderUs, wireUs } from "./views/us.js";
+import { renderMeals, renderFinance, renderFamily, renderNotes, wireMeals } from "./views/extras.js";
+import { renderSettings } from "./views/settings.js";
+import { loadGis } from "./lib/gcal.js";
+import "./companion/companion.js";
 
 /* ---------------- render loop ---------------- */
 function renderAll(){

@@ -1,6 +1,6 @@
 /* VITA PLENA v4 — views/today.js — the Today page (ritual home in step 4; agenda now) */
 import { $, esc, rid, fmtT, todayS, ymd, addD, dayIdx, S, QUOTES, saveKey, saveField, delItem,
-  taskOccursOn, taskDoneOn, repeatLabel, areaTag, doneSet, scheduledToday, profOf, partnerName, tagCls, toast, findPrayer } from "./data.js";
+  taskOccursOn, taskDoneOn, repeatLabel, areaTag, doneSet, scheduledToday, profOf, partnerName, tagCls, toast, findPrayer } from "../core/data.js";
 
 export function renderHome(){
   const now=new Date();

@@ -1,6 +1,6 @@
 /* VITA PLENA v4 — views/us.js — Three Words, State of the Union, Sit-Down, reflections */
 import { $, esc, rid, todayS, dayIdx, S, PROMPTS, DOMAINS, THREE_WORDS,
-  saveKey, saveField, addItem, updItem, delItem, isMine, tagCls, toast } from "./data.js";
+  saveKey, saveField, addItem, updItem, delItem, isMine, tagCls, toast } from "../core/data.js";
 
 let promptIdx=null;
 function daysSince(ts){return Math.floor((Date.now()-ts)/864e5);}

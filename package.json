@@ -1,0 +1,24 @@
+{
+  "name": "vita-plena",
+  "version": "5.0.0",
+  "private": true,
+  "description": "A Catholic household's rule of life. Vite front end, Netlify functions, Firebase.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "firebase": "10.12.2"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

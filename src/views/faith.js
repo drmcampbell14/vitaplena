@@ -1,7 +1,7 @@
 /* VITA PLENA v4 — views/faith.js — rhythm, readings, examen, confession, books, virtue */
 import { $, esc, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, S, SAINTS, EXAMEN_Q, VIRTUES, DOWS, season,
   saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, setVal, toast,
-  PRAYER_LIB, findPrayer } from "./data.js";
+  PRAYER_LIB, findPrayer } from "../core/data.js";
  
 function practiceWeight(mins){ return mins<=5?"light":mins<=20?"med":"heavy"; }
 function weightBars(w){
