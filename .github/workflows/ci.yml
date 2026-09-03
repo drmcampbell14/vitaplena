@@ -1,0 +1,21 @@
+# Vita Plena — continuous integration
+# Runs on every push and pull request: install, unit tests, production build.
+# A red run here means the change is not deployable; Netlify builds the same way.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
