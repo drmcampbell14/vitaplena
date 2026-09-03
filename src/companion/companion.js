@@ -59,8 +59,10 @@ window.cmpSend=async()=>{
     typing.remove();
     if(!r.ok){
       const e=await r.json().catch(()=>({}));
+      /* 401 and 403 carry a plain-English reason from the server; show it as-is so a
+         refused call says exactly why (no household, not a member, origin blocked). */
       const msg=r.status===401?"Your session has expired. Sign out and back in, then try again."
-        :r.status===403?"This account isn't part of a household yet. Set one up in Settings."
+        :r.status===403?(e.error||"The companion refused this request.")
         :e.say||("I couldn't reach you just now. "+(e.error||"")+" Try again in a moment.");
       cmpAdd(esc(msg),"cmp-bot"); $("cmp-send").disabled=false; return;
     }

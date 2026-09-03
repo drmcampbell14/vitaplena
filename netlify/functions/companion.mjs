@@ -28,23 +28,28 @@ const SYSTEM_PROMPT = "You are the companion inside Vita Plena, a Catholic house
 
 const PROJECT_ID = "vita-plena-a7efa";
 
-/** Origins allowed to call this function from a browser. Empty set = any origin
-    (the token requirement still applies). Exported for tests. */
-export function allowedOrigins(env = process.env) {
+const stripSlash = (s) => String(s).replace(/\/+$/, "");
+
+/** Extra browser origins allowed besides the site's own address. Exported for tests. */
+export function extraOrigins(env = process.env) {
   return new Set([
-    env.ALLOWED_ORIGIN,
-    env.URL,               // Netlify: production URL
-    env.DEPLOY_PRIME_URL,  // Netlify: branch deploy / deploy preview URL
-    "http://localhost:5173" // Vite dev server (see vite.config.js proxy)
-  ].filter(Boolean).map(o => o.replace(/\/+$/, "")));
+    env.ALLOWED_ORIGIN,       // e.g. a custom domain that fronts the site
+    "http://localhost:5173",  // Vite dev server (see vite.config.js proxy)
+    "capacitor://localhost",  // Capacitor iOS shell (Phase 6)
+    "http://localhost"        // Capacitor Android shell (Phase 6)
+  ].filter(Boolean).map(stripSlash));
 }
 
-/** True when `origin` may call. A missing Origin header (curl, native shells) passes
-    the origin check; those callers still need a valid token. Exported for tests. */
-export function isAllowedOrigin(origin, allowed) {
+/** True when a browser at `origin` may call the function at `requestUrl`.
+    The site's own origin is always allowed, so production, branch deploys, and
+    deploy previews all work with no configuration. A missing Origin header (curl,
+    native shells) passes this check; those callers still need a valid token.
+    Exported for tests. */
+export function isAllowedOrigin(origin, requestUrl, extra = extraOrigins()) {
   if (!origin) return true;
-  if (allowed.size === 0) return true;
-  return allowed.has(origin.replace(/\/+$/, ""));
+  const o = stripSlash(origin);
+  try { if (o === new URL(requestUrl).origin) return true; } catch { /* fall through */ }
+  return extra.has(o);
 }
 
 /** Pulls the token out of an Authorization header. Exported for tests. */
@@ -147,7 +152,9 @@ export default async (req) => {
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
   if (req.method !== "POST") return json(405, { error: "Method not allowed" }, headers);
-  if (!isAllowedOrigin(origin, allowedOrigins())) return json(403, { error: "Forbidden origin" }, headers);
+  if (!isAllowedOrigin(origin, req.url)) {
+    return json(403, { error: "This site isn't allowed to use the companion (origin " + origin + ")" }, headers);
+  }
 
   // Identity first: an unauthenticated call must cost nothing beyond the token check.
   let caller;

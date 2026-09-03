@@ -112,7 +112,9 @@ if($("auth-form")){
     try{
       await sendPasswordResetEmail(auth,email);
       err.textContent="";
-      toast("Reset link sent to "+email);
+      // Firebase won't reveal whether an address is registered (and a Google-only
+      // account has no password to reset), so the wording has to be conditional.
+      err.textContent="If "+email+" has a Vita Plena password, a reset link is on its way. Check spam too.";
     }catch(e){err.textContent=authMessage(e);}
     finally{setAuthBusy(false);}
   };
