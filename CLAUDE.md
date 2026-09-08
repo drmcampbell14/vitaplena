@@ -7,20 +7,31 @@ A Catholic household app for Mitch and Liz Campbell, becoming a paid product (Co
 
 ## Layout
 ```
-index.html               Vite entry
-src/main.js              boot, auth gate, onboarding, render loop
-src/core/data.js         Firebase init, state S, write helpers, constants, prayer library
-src/core/liturgical.js   easter(), season(), SAINTS         (pure, tested)
-src/core/recurrence.js   taskOccursOn() and friends         (pure, tested)
-src/core/util.js         $, esc, ids, formatting, toast     (pure, tested)
-src/views/*.js           today, calendar, tasks, faith, us, extras, settings
-src/companion/           companion sheet + action executor
-src/lib/gcal.js          Google Calendar pull
-netlify/functions/       companion.mjs (Admin SDK, verified identity)
-firestore.rules          security rules (source of truth; published by hand until CI deploy lands)
-test/                    Vitest
+index.html                 shell (pages, sheet, modal, bell overlay)
+src/main.js                boot: auth → household record → realtime → shell; ?demo=1 preview
+src/app/shell.js           tabs, header, liturgical colour tokens, render bus, go()
+src/app/gate.js            sign in (email primary, Google secondary), create/join household
+src/app/onboarding.js      the rule in four steps: God, Family, The bells, Enter
+src/app/demo.js            sample household in memory (?demo=1); writes stay in memory
+src/screens/*.js           today, pray, calendar, tasks, us, more (settings + Meals/Finance/Family/Notes)
+src/companion/companion.js Beacon: capture bar + sheet, state snapshot, action executor
+src/content/prayers.js     prayer library (why / does lines) + guided flows (Rosary, Chaplet, Examen)
+src/core/data.js           Firebase init, state S, write helpers (with demo branch), constants
+src/core/liturgical.js     easter(), season(), liturgicalColor(), mysteriesFor(), SAINTS   (pure, tested)
+src/core/recurrence.js     taskOccursOn() and friends                                      (pure, tested)
+src/core/util.js           $, esc, ids, formatting                                           (pure, tested)
+src/core/bells.js          the bells: per-device settings, scheduler, synthesized sound, overlay
+src/ui/dom.js              openSheet/closeSheet, openModal/confirmModal, toast, ICON, the `A` action registry
+src/styles/app.css         design system (tokens, both themes, components)
+src/lib/gcal.js            Google Calendar pull
+public/                    manifest.webmanifest, sw.js, icons
+netlify/functions/         companion.mjs (Admin SDK, verified identity)
+firestore.rules            security rules (source of truth; published by hand until CI deploy lands)
+test/                      Vitest
 ```
 Commands: `npm run dev` · `npm test` · `npm run build`. CI runs test + build on every push.
+
+Conventions: screens render HTML strings into `#page-<id>` and register with `registerScreen(id, render)`; inline handlers call `A.<name>(...)`, the global action registry in `src/ui/dom.js`. `renderAll()` redraws every screen from `S` on each Firestore snapshot. Full-height readers (prayers, Beacon, check-in) use `openSheet`; small forms use `openModal`.
 
 ## Core features to protect (never break these)
 - Liturgical season theming

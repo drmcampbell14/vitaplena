@@ -158,8 +158,12 @@ Read CLAUDE.md and VITA-PLENA-FINAL-PRODUCT-SPEC.md. Phase 1, task 1.3 (usage qu
 
 ## 7. Status, deploy strategy, and decisions log
 
-### Where things are (2026-09-03)
-Branch `claude/phase-1-security-auth-hsb3x5` carries the v5 build: docs, rules file, Vite scaffold, tests + CI, email sign-in, locked companion function. `main` is the untouched v4 and stays live.
+### Where things are (2026-09-08, revision 3)
+Branch `claude/phase-1-security-auth-hsb3x5` carries the v5 build. **The entire front end was rebuilt on 2026-09-08**: new design system (liturgical colour of the day), five tabs, Today as a rhythm view with Me/Household, Beacon capture bar, the bells (client-side), the prayer library with guided Rosary / Chaplet / Examen, Mass readings via USCCB + Universalis, rebuilt onboarding, PWA (manifest, service worker, icons), and a `?demo=1` preview mode. `main` is the untouched v4 and stays live.
+
+Built in the rebuild, against the phase list: 2.2 Today ✓ · 2.3 bells (client-side) ✓ · 2.4 Beacon (name, capture bar, chips; prompt versioning and the 20-scenario suite still open) · 2.5 tasks (UI ✓; chore rotation open) · 2.6 calendar (month ✓; week view and two-way open) · 2.8 readings (USCCB link + Universalis text ✓; Douay-Rheims and Butler's Lives open) · 2.9 prayers ✓ · 2.10 Us ✓ · 2.13 More ✓ · 2.14 onboarding ✓ (tour open) · PWA ✓ · 6.4 demo account ✓ (`?demo=1`). Still open in Phase 2: 2.1 people model (famSections exists; assignment to people does not), 2.7 romcal + 1962 calendar, 2.11/2.12 the games, 2.15 family mode.
+
+**The App Store path from here:** Capacitor wraps `dist/` as-is (see README). Blocking items are all outside the code: Apple Developer enrollment, Sign in with Apple (6.2), a privacy policy and support URL (7.2), then archive → TestFlight → review.
 
 ### Deploy strategy: branch deploy = the parallel site
 Netlify: **Site configuration → Build & deploy → Continuous deployment → Branches and deploy contexts → Branch deploys → "Let me add individual branches"** → add `claude/phase-1-security-auth-hsb3x5`. The branch then deploys at `https://claude-phase-1-security-auth-hsb3x5--vitaplena13.netlify.app` and rebuilds on every push. `netlify.toml` already carries the build command, so no build settings change in the console. When v5 is better than v4, merge to `main`.
