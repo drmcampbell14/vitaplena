@@ -64,11 +64,18 @@ export const provider=new GoogleAuthProvider();
 /* ---------------- write helpers ---------------- */
 export const stateRef=()=>doc(db,"households",S.hid,"state","main");
 export const itemsCol=()=>collection(db,"households",S.hid,"items");
-export function saveKey(key,val){setDoc(stateRef(),{[key]:val},{merge:true}).catch(e=>toast(e.message));}
-export function saveField(path,val){updateDoc(stateRef(),{[path]:val}).catch(e=>setDoc(stateRef(),{},{merge:true}).then(()=>updateDoc(stateRef(),{[path]:val})).catch(()=>{}));}
-export function addItem(data){return addDoc(itemsCol(),{...data,owner:S.user.uid,ownerName:S.profile?.name||"",ownerInitials:S.profile?.initials||"",createdAt:Date.now()}).catch(e=>toast(e.message));}
-export function updItem(id,data){return updateDoc(doc(db,"households",S.hid,"items",id),data).catch(e=>toast(e.message));}
-export function delItem(id){return deleteDoc(doc(db,"households",S.hid,"items",id)).catch(e=>toast(e.message));}
+/* In preview mode (S.demo, see app/demo.js) every write lands in memory and
+   re-renders, so the sample household behaves like a real one without Firestore. */
+function setPath(obj,path,val){ const ks=path.split("."); let o=obj; for(let i=0;i<ks.length-1;i++){ if(typeof o[ks[i]]!=="object"||o[ks[i]]===null)o[ks[i]]={}; o=o[ks[i]]; } o[ks[ks.length-1]]=val; }
+export function saveKey(key,val){ if(S.demo){ S.state[key]=val; bus.render(); return Promise.resolve(); } return setDoc(stateRef(),{[key]:val},{merge:true}).catch(e=>toast(e.message)); }
+export function saveField(path,val){ if(S.demo){ setPath(S.state,path,val); bus.render(); return Promise.resolve(); } return updateDoc(stateRef(),{[path]:val}).catch(e=>setDoc(stateRef(),{},{merge:true}).then(()=>updateDoc(stateRef(),{[path]:val})).catch(()=>{})); }
+export function addItem(data){
+  const full={...data,owner:S.user.uid,ownerName:S.profile?.name||"",ownerInitials:S.profile?.initials||"",createdAt:Date.now()};
+  if(S.demo){ S.items.push({id:rid(),...full}); bus.render(); return Promise.resolve(); }
+  return addDoc(itemsCol(),full).catch(e=>toast(e.message));
+}
+export function updItem(id,data){ if(S.demo){ S.items=S.items.map(i=>i.id===id?{...i,...data}:i); bus.render(); return Promise.resolve(); } return updateDoc(doc(db,"households",S.hid,"items",id),data).catch(e=>toast(e.message)); }
+export function delItem(id){ if(S.demo){ S.items=S.items.filter(i=>i.id!==id); bus.render(); return Promise.resolve(); } return deleteDoc(doc(db,"households",S.hid,"items",id)).catch(e=>toast(e.message)); }
 window.delItem=delItem;window.updItem=updItem;
 
 export const partnerUid=()=>(S.house?.members||[]).find(m=>m!==S.user.uid);
@@ -101,40 +108,4 @@ export function ensureSection(area,name){
     saveField("taskSections.together",(byArea.together||[]).concat([sec]));
   }
   return sec;
-}
-
-
-/* ---------------- prayer library (traditional texts, tap-to-pray) ---------------- */
-const P_HAILMARY="Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.";
-export const PRAYER_LIB=[
- {id:"offering",match:["morning offering","offering"],emoji:"🙏",title:"The Morning Offering",
-  body:`<p>O Jesus, through the Immaculate Heart of Mary, I offer You my prayers, works, joys, and sufferings of this day, for all the intentions of Your Sacred Heart, in union with the Holy Sacrifice of the Mass throughout the world, in reparation for my sins, for the intentions of all my relatives and friends, and in particular for the intentions of the Holy Father. Amen.</p>`},
- {id:"angelus",match:["angelus"],emoji:"🔔",title:"The Angelus",
-  body:`<p><b>V.</b> The Angel of the Lord declared unto Mary,<br><b>R.</b> And she conceived of the Holy Spirit.</p>
-<p><i>${P_HAILMARY}</i></p>
-<p><b>V.</b> Behold the handmaid of the Lord,<br><b>R.</b> Be it done unto me according to thy word.</p>
-<p><i>Hail Mary…</i></p>
-<p><b>V.</b> And the Word was made flesh,<br><b>R.</b> And dwelt among us.</p>
-<p><i>Hail Mary…</i></p>
-<p><b>V.</b> Pray for us, O holy Mother of God,<br><b>R.</b> That we may be made worthy of the promises of Christ.</p>
-<p><b>Let us pray:</b> Pour forth, we beseech Thee, O Lord, Thy grace into our hearts, that we, to whom the Incarnation of Christ Thy Son was made known by the message of an angel, may by His Passion and Cross be brought to the glory of His Resurrection. Through the same Christ our Lord. Amen.</p>`},
- {id:"reginacaeli",match:[],emoji:"🔔",title:"Regina Caeli",
-  note:"During Eastertide, the Regina Caeli replaces the Angelus.",
-  body:`<p><b>V.</b> Queen of Heaven, rejoice, alleluia.<br><b>R.</b> For He whom thou didst merit to bear, alleluia.</p>
-<p><b>V.</b> Hath risen as He said, alleluia.<br><b>R.</b> Pray for us to God, alleluia.</p>
-<p><b>V.</b> Rejoice and be glad, O Virgin Mary, alleluia.<br><b>R.</b> For the Lord hath truly risen, alleluia.</p>
-<p><b>Let us pray:</b> O God, who through the Resurrection of Thy Son, our Lord Jesus Christ, didst vouchsafe to give joy to the world: grant, we beseech Thee, that through His Mother, the Virgin Mary, we may obtain the joys of everlasting life. Through the same Christ our Lord. Amen.</p>`},
- {id:"night",match:["night prayer","night prayers","evening prayer","compline","bedtime"],emoji:"🌙",title:"Night Prayers",
-  body:`<p><b>Act of Contrition</b></p>
-<p>O my God, I am heartily sorry for having offended Thee, and I detest all my sins because I dread the loss of Heaven and the pains of hell; but most of all because they offend Thee, my God, Who art all-good and deserving of all my love. I firmly resolve, with the help of Thy grace, to confess my sins, to do penance, and to amend my life. Amen.</p>
-<p><b>Commendation</b></p>
-<p>Into Thy hands, O Lord, I commend my spirit. Protect us, Lord, as we stay awake; watch over us as we sleep: that awake, we may keep watch with Christ, and asleep, rest in His peace.</p>
-<p>May the Lord grant us a quiet night and a peaceful death. Amen.</p>
-<p><i>Our Father… Hail Mary… Glory be…</i></p>`}
-];
-export function findPrayer(name){
-  const n=(name||"").toLowerCase();
-  let hit=PRAYER_LIB.find(pr=>pr.match.some(m=>n.includes(m)));
-  if(hit&&hit.id==="angelus"&&season(new Date()).name==="Easter")hit=PRAYER_LIB.find(pr=>pr.id==="reginacaeli");
-  return hit||null;
 }

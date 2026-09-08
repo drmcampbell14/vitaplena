@@ -1,204 +1,165 @@
-/* VITA PLENA v4 — companion.js — the AI front door.
-   Chat UI + state snapshot + direct action executor with confirmation chips. */
-import { $, esc, rid, fmtT, todayS, ymd, addD, S, saveField, addItem, updItem, delItem,
-  ensureSection, partnerName, profOf, toast, bus } from "../core/data.js";
+/* Vita Plena — Beacon, the companion.
+   One function, two doors: the capture bar on Today (inline reply) and the full
+   sheet (conversation). Every message carries a state snapshot; the server
+   verifies the caller's ID token, calls Claude, and returns { say, actions }.
+   Actions are applied here, directly to the household, and confirmed with chips. */
+import { S, esc, rid, fmtT, todayS, ymd, addD, saveField, addItem, updItem, delItem, ensureSection, partnerName, profOf, db, auth } from "../core/data.js";
 import { syncGcal } from "../lib/gcal.js";
 import { doc, updateDoc } from "firebase/firestore";
-import { db, auth } from "../core/data.js";
+import { $, A, ICON, openSheet, toast, haptic } from "../ui/dom.js";
+import { renderAll } from "../app/shell.js";
 
-const CMP_ENDPOINT="/.netlify/functions/companion";
+export const BEACON_NAME="Beacon";
+const ENDPOINT="/.netlify/functions/companion";
+const SUGGEST=["Plan my day","What's on tomorrow?","Rosary at 8 tonight","Clear my afternoon","Add a task for Liz","Move dinner to 6"];
 
-window.openCompanion=()=>{ $("cmp-sheet").style.display="block"; setTimeout(()=>$("cmp-in").focus(),300); };
-window.closeCompanion=()=>{ $("cmp-sheet").style.display="none"; };
-function cmpAdd(html,cls){ const l=$("cmp-log"); const d=document.createElement("div"); d.className="cmp-msg "+cls; d.innerHTML=html; l.appendChild(d); l.scrollTop=l.scrollHeight; return d; }
-
-/* state snapshot sent with every message */
-function cmpState(){
-  const now=new Date();
-  const dow=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][now.getDay()];
-  const weekEnd=ymd(addD(now,14));
-  const todayStr=todayS();
+/* ---------------- state snapshot ---------------- */
+function snapshot(){
+  const now=new Date(), todayStr=todayS(), weekEnd=ymd(addD(now,14));
   const areaName=a=>a==="together"?"both":(profOf(a).name||"").toLowerCase()||"me";
   return {
-    today: todayStr,
-    dayOfWeek: dow,
-    prettyDate: now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),
-    me: S.profile?.name||"",
-    spouse: partnerName(),
-    practices: (S.state.practices||[]).map(p=>({name:p.name,time:p.time,mins:p.mins,days:p.days})),
-    todaysEvents: S.items.filter(i=>i.kind==="event"&&i.date===todayStr)
-      .map(e=>({title:e.title,time:e.time,endTime:e.endTime||"",owner:e.ownerName||""})),
-    upcomingEvents: S.items.filter(i=>i.kind==="event"&&i.date>todayStr&&i.date<=weekEnd)
-      .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))
-      .map(e=>({title:e.title,date:e.date,time:e.time,endTime:e.endTime||"",owner:e.ownerName||""})),
-    openTasks: S.items.filter(i=>i.kind==="task"&&!i.done&&(i.area===S.user.uid||i.area==="together")).slice(0,25)
-      .map(t=>({text:t.text,assignee:areaName(t.area),due:t.due||"",repeating:!!t.repeat})),
-    confessionCadence: ((S.state.confession||{})[S.user.uid]||{}).cadence||14,
-    lastConfession: (()=>{const c=(S.state.confession||{})[S.user.uid]||{};const l=(c.log&&c.log.length?c.log:(c.last?[c.last]:[])).slice().sort();return l[l.length-1]||"";})(),
-    focus: (S.state.focus||[]).filter(f=>!f.done).map(f=>f.text),
-    marriageRhythm: S.state.marriageRhythm||"weekly",
-    wake: S.state.wake||"07:00"
+    today:todayStr, dayOfWeek:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][now.getDay()],
+    prettyDate:now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),
+    liturgicalDay:S.liturgy?.day||"",
+    me:S.profile?.name||"", spouse:partnerName(),
+    people:(S.state.famSections||[]).map(f=>f.name),
+    practices:(S.state.practices||[]).map(p=>({name:p.name,time:p.time,mins:p.mins,days:p.days})),
+    todaysEvents:S.items.filter(i=>i.kind==="event"&&i.date===todayStr).map(e=>({title:e.title,time:e.time,endTime:e.endTime||"",owner:e.ownerName||""})),
+    upcomingEvents:S.items.filter(i=>i.kind==="event"&&i.date>todayStr&&i.date<=weekEnd).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(e=>({title:e.title,date:e.date,time:e.time,endTime:e.endTime||"",owner:e.ownerName||""})),
+    openTasks:S.items.filter(i=>i.kind==="task"&&!i.done&&(i.area===S.user.uid||i.area==="together")).slice(0,25).map(t=>({text:t.text,assignee:areaName(t.area),due:t.due||"",repeating:!!t.repeat})),
+    confessionCadence:((S.state.confession||{})[S.user.uid]||{}).cadence||14,
+    lastConfession:(()=>{const c=(S.state.confession||{})[S.user.uid]||{};const l=(c.log&&c.log.length?c.log:(c.last?[c.last]:[])).slice().sort();return l[l.length-1]||"";})(),
+    focus:(S.state.focus||[]).filter(f=>!f.done).map(f=>f.text),
+    marriageRhythm:S.state.marriageRhythm||"weekly", wake:S.state.wake||"07:00"
   };
 }
 
-let cmpHistory=[];
-window.cmpSend=async()=>{
-  const inp=$("cmp-in"); const text=inp.value.trim(); if(!text)return;
-  inp.value=""; $("cmp-send").disabled=true;
-  cmpAdd(esc(text),"cmp-user");
-  cmpHistory.push({role:"user",content:text});
-  if(cmpHistory.length>12) cmpHistory=cmpHistory.slice(-12);
-  const typing=cmpAdd("ordering the day…","cmp-typing");
+/* ---------------- conversation ---------------- */
+const log=[];      // {role:"user"|"bot", text, chips?}
+let busy=false;
+
+/** Send a message. Returns {say, chips} or null. Renders the sheet if open. */
+A.beaconSend=async(text,{inline=false}={})=>{
+  text=(text||"").trim(); if(!text||busy)return null;
+  busy=true;
+  log.push({role:"user",text}); renderSheetLog();
+  const typing={role:"typing",text:"ordering the day…"}; log.push(typing); renderSheetLog();
+  let result=null;
   try{
-    /* The function verifies this token server-side and refuses calls without one,
-       so the Anthropic key is only ever spent on signed-in members of a household. */
     const token=await auth.currentUser?.getIdToken().catch(()=>null);
-    if(!token){ typing.remove(); cmpAdd("You've been signed out. Sign in again and I'll pick this back up.","cmp-bot"); $("cmp-send").disabled=false; return; }
-    const r=await fetch(CMP_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:JSON.stringify({text,state:cmpState(),history:cmpHistory.slice(0,-1)})});
-    typing.remove();
+    if(!token)throw {say:"You've been signed out. Sign in again and I'll pick this back up."};
+    const history=log.filter(m=>m.role==="user"||m.role==="bot").slice(-12,-1).map(m=>({role:m.role==="user"?"user":"assistant",content:m.text}));
+    const r=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({text,state:snapshot(),history})});
     if(!r.ok){
       const e=await r.json().catch(()=>({}));
-      /* 401 and 403 carry a plain-English reason from the server; show it as-is so a
-         refused call says exactly why (no household, not a member, origin blocked). */
-      const msg=r.status===401?"Your session has expired. Sign out and back in, then try again."
-        :r.status===403?(e.error||"The companion refused this request.")
-        :e.say||("I couldn't reach you just now. "+(e.error||"")+" Try again in a moment.");
-      cmpAdd(esc(msg),"cmp-bot"); $("cmp-send").disabled=false; return;
+      throw {say:r.status===401?"Your session has expired. Sign out and back in, then try again.":r.status===403?(e.error||"I'm not allowed to help with this account yet."):e.say||("I couldn't reach you just now. "+(e.error||"")+" Try again in a moment.")};
     }
     const data=await r.json();
-    if(data.say){ cmpAdd(esc(data.say),"cmp-bot"); cmpSpeak(data.say); cmpHistory.push({role:"assistant",content:data.say}); }
-    if(data.actions&&data.actions.length){
-      const chips=cmpApply(data.actions);
-      if(chips.length){
-        const wrap=document.createElement("div"); wrap.className="cmp-chips";
-        wrap.innerHTML=chips.map(c=>`<span class="cmp-chip ${c.terra?"terra":""}">${esc(c.label)}</span>`).join("");
-        $("cmp-log").appendChild(wrap); $("cmp-log").scrollTop=$("cmp-log").scrollHeight;
-      }
-      cmpBuzz([15,40,15]);
-      bus.render();
-      syncGcal().catch(()=>{});
-    }
-  }catch(e){ typing.remove(); cmpAdd("Something went quiet on my end. Try again in a moment.","cmp-bot"); }
-  $("cmp-send").disabled=false;
+    const chips=(data.actions&&data.actions.length)?apply(data.actions):[];
+    if(chips.length){ haptic([15,40,15]); renderAll(); syncGcal().catch(()=>{}); }
+    result={say:data.say||"",chips};
+    speak(data.say);
+  }catch(e){ result={say:e?.say||"Something went quiet on my end. Try again in a moment.",chips:[],error:true}; }
+  const i=log.indexOf(typing); if(i>=0)log.splice(i,1);
+  log.push({role:"bot",text:result.say,chips:result.chips});
+  busy=false; renderSheetLog();
+  return result;
 };
 
-/* ---- the executor: apply actions directly, return confirmation chips ---- */
+A.openBeacon=()=>{
+  openSheet(`<div class="beacon">
+    <div class="b-head"><div class="iconbtn lit" style="width:34px;height:34px">${ICON.beacon}</div><div><div class="b-name">${BEACON_NAME}</div><div class="hint">Runs the house from plain English</div></div></div>
+    <div class="b-log" id="b-log"></div>
+    <div class="suggest">${SUGGEST.map(s=>`<span class="chip" onclick="A.beaconSuggest('${esc(s)}')">${esc(s)}</span>`).join("")}</div>
+    <div class="b-in"><input id="b-in" placeholder="Tell ${BEACON_NAME}…" onkeydown="if(event.key==='Enter')A.beaconSubmit()" autocomplete="off"><button class="iconbtn ghost" id="b-mic" onclick="A.beaconMic('b-in','b-mic')" aria-label="Speak">${ICON.mic}</button><button class="iconbtn ghost" id="b-voice" onclick="A.beaconVoice()" title="${voiceOn?"Voice on":"Voice off"}">${voiceOn?"🔊":"🔇"}</button><button class="iconbtn lit" onclick="A.beaconSubmit()" aria-label="Send">${ICON.send}</button></div>
+  </div>`,{cls:"full"});
+  renderSheetLog(); setTimeout(()=>$("b-in")?.focus(),300);
+};
+A.beaconSubmit=()=>{ const inp=$("b-in"); if(!inp)return; const t=inp.value; inp.value=""; A.beaconSend(t); };
+A.beaconSuggest=s=>A.beaconSend(s);
+function renderSheetLog(){
+  const el=$("b-log"); if(!el)return;
+  el.innerHTML=log.length?log.map(m=>m.role==="typing"?`<div class="msg typing">${esc(m.text)}</div>`:`<div class="msg ${m.role}">${esc(m.text)}</div>${m.chips?.length?`<div class="msg-chips">${m.chips.map(c=>`<span class="chip ${c.terra?"warn":"lit"}">${esc(c.label)}</span>`).join("")}</div>`:""}`).join("")
+    :`<div class="msg bot">I'm ${BEACON_NAME}. Tell me what's happening and I'll put it where it belongs: prayer first, then family, then work, then rest. Try "plan my day."</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+
+/* ---------------- the executor ---------------- */
 function resolveArea(assignee){
   const a=(assignee||"").toLowerCase().trim();
   if(!a||a==="me")return S.user.uid;
   if(a==="both"||a==="together"||a==="us")return "together";
-  const members=S.house?.members||[];
-  const hit=members.find(u=>(profOf(u).name||"").toLowerCase()===a||(profOf(u).name||"").toLowerCase().startsWith(a));
+  const hit=(S.house?.members||[]).find(u=>{const n=(profOf(u).name||"").toLowerCase();return n===a||n.startsWith(a);});
   return hit||S.user.uid;
 }
 function findTask(text){
   const q=(text||"").toLowerCase().trim(); if(!q)return null;
   const open=S.items.filter(i=>i.kind==="task");
-  const exact=open.filter(t=>(t.text||"").toLowerCase().trim()===q);
-  if(exact.length)return exact[0];
+  const exact=open.filter(t=>(t.text||"").toLowerCase().trim()===q); if(exact.length)return exact[0];
   const part=open.filter(t=>(t.text||"").toLowerCase().includes(q)||q.includes((t.text||"").toLowerCase()));
   return part.length===1?part[0]:(part[0]||null);
 }
-function cmpApply(actions){
+function apply(actions){
   const chips=[];
   actions.forEach(a=>{
     try{
       if(a.op==="create_practice"){
-        const list=(S.state.practices||[]).concat([{id:rid(),name:a.name,emoji:a.emoji||"🙏",time:a.time||"07:00",mins:a.mins||10,days:Array.isArray(a.days)?a.days:[0,1,2,3,4,5,6]}]);
-        saveField("practices",list);
-        chips.push({label:"✓ Practice added · "+(a.name||"")});
+        saveField("practices",(S.state.practices||[]).concat([{id:rid(),name:a.name,emoji:a.emoji||"🙏",time:a.time||"07:00",mins:a.mins||10,days:Array.isArray(a.days)?a.days:[0,1,2,3,4,5,6]}]));
+        chips.push({label:"✓ Practice · "+(a.name||"")});
       } else if(a.op==="edit_practice"){
-        const nm=(a.name||"").toLowerCase();
-        let hit=null;
-        const list=(S.state.practices||[]).map(p=>{
-          const pn=(p.name||"").toLowerCase();
-          if(!hit&&(pn===nm||pn.includes(nm)||nm.includes(pn))){
-            hit=p.name;
-            return {...p, ...(a.days?{days:a.days}:{}), ...(a.time?{time:a.time}:{}), ...(a.mins?{mins:a.mins}:{})};
-          } return p;
-        });
-        saveField("practices",list);
-        chips.push({label:hit?("✓ "+hit+" adjusted"):("— couldn't find "+(a.name||"that practice"))});
+        const nm=(a.name||"").toLowerCase(); let hit=null;
+        const list=(S.state.practices||[]).map(p=>{const pn=(p.name||"").toLowerCase(); if(!hit&&(pn===nm||pn.includes(nm)||nm.includes(pn))){hit=p.name;return {...p,...(a.days?{days:a.days}:{}),...(a.time?{time:a.time}:{}),...(a.mins?{mins:a.mins}:{})};} return p;});
+        saveField("practices",list); chips.push({label:hit?("✓ "+hit+" adjusted"):("— couldn't find "+(a.name||"that practice")),terra:!hit});
       } else if(a.op==="create_event"){
-        addItem({kind:"event",title:a.title||"Event",date:a.date||todayS(),time:a.time||"",endTime:a.endTime||"",area:a.tier==="family"?"together":S.user.uid,tier:a.tier||""});
+        addItem({kind:"event",title:a.title||"Event",date:a.date||todayS(),time:a.time||"",endTime:a.endTime||"",area:a.tier==="family"?"together":S.user.uid,tier:a.tier||"",source:"manual"});
         chips.push({label:"✓ Event · "+(a.title||"")+(a.time?" · "+fmtT(a.time):"")});
       } else if(a.op==="create_task"){
-        const area=resolveArea(a.assignee||a.area);
-        const realArea=(area==="together"||S.house?.members?.includes(area))?area:S.user.uid;
+        const area=resolveArea(a.assignee||a.area); const realArea=(area==="together"||S.house?.members?.includes(area))?area:S.user.uid;
         const sec=ensureSection(realArea,a.area&&a.area!==a.assignee?a.area:"");
         addItem({kind:"task",text:a.text||"Task",area:realArea,sectionId:sec.id,due:a.date||a.due||"",repeat:a.repeat||null,doneDates:{},done:false,tier:a.tier||""});
         chips.push({label:"✓ Task · "+(a.text||"")});
       } else if(a.op==="complete_task"){
         const t=findTask(a.text);
-        if(t){
-          if(t.repeat){const dd={...(t.doneDates||{})};dd[todayS()]=true;updItem(t.id,{doneDates:dd});}
-          else updItem(t.id,{done:true});
-          chips.push({label:"✓ Done · "+t.text});
-        } else chips.push({label:"— couldn't find that task",terra:true});
+        if(t){ if(t.repeat){const dd={...(t.doneDates||{})};dd[todayS()]=true;updItem(t.id,{doneDates:dd});} else updItem(t.id,{done:true}); chips.push({label:"✓ Done · "+t.text}); }
+        else chips.push({label:"— couldn't find that task",terra:true});
       } else if(a.op==="reschedule_task"){
         const t=findTask(a.text);
-        if(t){ updItem(t.id,{due:a.date||todayS()}); chips.push({label:"✓ Moved · "+t.text+" → "+(a.date||"today")}); }
-        else chips.push({label:"— couldn't find that task",terra:true});
+        if(t){ updItem(t.id,{due:a.date||todayS()}); chips.push({label:"✓ Moved · "+t.text+" → "+(a.date||"today")}); } else chips.push({label:"— couldn't find that task",terra:true});
       } else if(a.op==="protect_time"){
-        addItem({kind:"event",title:a.label||"Protected time",date:a.date||todayS(),time:a.time||"",endTime:"",area:"together",protected:true,tier:a.tier||"family",mins:a.mins||null});
+        addItem({kind:"event",title:a.label||"Protected time",date:a.date||todayS(),time:a.time||"",endTime:"",area:"together",protected:true,tier:a.tier||"family",mins:a.mins||null,source:"manual"});
         chips.push({label:"✓ Protected · "+(a.label||"")+(a.time?" · "+fmtT(a.time):"")});
       } else if(a.op==="set_confession_cadence"){
-        saveField(`confession.${S.user.uid}.cadence`,Number(a.days)||14);
-        chips.push({label:"✓ Confession every "+(Number(a.days)||14)+" days"});
+        saveField(`confession.${S.user.uid}.cadence`,Number(a.days)||14); chips.push({label:"✓ Confession every "+(Number(a.days)||14)+" days"});
       } else if(a.op==="set_focus"){
-        saveField("focus",(S.state.focus||[]).concat([{id:rid(),text:a.text,done:false}]));
-        chips.push({label:"✓ Focus · "+(a.text||"")});
+        saveField("focus",(S.state.focus||[]).concat([{id:rid(),text:a.text,done:false}])); chips.push({label:"✓ Focus · "+(a.text||"")});
       } else if(a.op==="set_countdown"){
-        updateDoc(doc(db,"households",S.hid),{countdown:{label:a.label||"",date:a.date||""}}).catch(()=>{});
-        chips.push({label:"✓ Countdown · "+(a.label||"")});
+        updateDoc(doc(db,"households",S.hid),{countdown:{label:a.label||"",date:a.date||""}}).catch(()=>{}); chips.push({label:"✓ Countdown · "+(a.label||"")});
       } else if(a.op==="clear_today"){
-        const t=todayS();
-        const evs=S.items.filter(i=>i.kind==="event"&&i.date===t);
-        evs.forEach(i=>delItem(i.id));
+        const evs=S.items.filter(i=>i.kind==="event"&&i.date===todayS()); evs.forEach(i=>delItem(i.id));
         chips.push({label:"✓ Today cleared ("+evs.length+" event"+(evs.length===1?"":"s")+")",terra:true});
       } else if(a.op==="delete_event"){
         const title=(a.title||"").toLowerCase().trim();
-        if(title){
-          const evs=S.items.filter(i=>i.kind==="event");
-          const exact=evs.filter(i=>(i.title||"").toLowerCase().trim()===title);
-          const partial=evs.filter(i=>(i.title||"").toLowerCase().includes(title));
-          const targets = exact.length?exact : (partial.length===1?partial:[]);
-          targets.forEach(i=>delItem(i.id));
-          chips.push({label:targets.length?("✓ Removed · "+(a.title||"")):"— couldn't find that event",terra:true});
-        }
-      } else {
-        console.warn("Unknown companion op:",a.op,a);
-      }
+        if(title){ const evs=S.items.filter(i=>i.kind==="event"); const exact=evs.filter(i=>(i.title||"").toLowerCase().trim()===title); const partial=evs.filter(i=>(i.title||"").toLowerCase().includes(title)); const targets=exact.length?exact:(partial.length===1?partial:[]); targets.forEach(i=>delItem(i.id)); chips.push({label:targets.length?("✓ Removed · "+(a.title||"")):"— couldn't find that event",terra:!targets.length}); }
+      } else console.warn("Unknown companion op:",a.op,a);
     }catch(e){ console.warn("Companion action failed:",a,e); }
   });
   return chips;
 }
 
-/* voice input */
-let cmpRecog=null, cmpListening=false;
-window.cmpMic=()=>{
+/* ---------------- voice in / out ---------------- */
+let recog=null, listening=false;
+A.beaconMic=(inputId,btnId)=>{
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){ toast("Voice input isn't supported on this browser"); return; }
-  if(cmpListening){ try{cmpRecog.stop();}catch(e){} return; }
-  cmpRecog=new SR(); cmpRecog.lang="en-US"; cmpRecog.interimResults=true; cmpRecog.continuous=false;
-  const micBtn=$("cmp-mic"); const inp=$("cmp-in");
-  cmpRecog.onstart=()=>{cmpListening=true; if(micBtn){micBtn.textContent="●"; micBtn.classList.add("listening");}};
-  cmpRecog.onend=()=>{cmpListening=false; if(micBtn){micBtn.textContent="🎙"; micBtn.classList.remove("listening");}};
-  cmpRecog.onerror=()=>{cmpListening=false; if(micBtn){micBtn.textContent="🎙"; micBtn.classList.remove("listening");}};
-  cmpRecog.onresult=(e)=>{ let t=""; for(let i=0;i<e.results.length;i++) t+=e.results[i][0].transcript; inp.value=t; };
-  try{ cmpRecog.start(); }catch(e){}
+  if(!SR)return toast("Voice input isn't supported in this browser");
+  if(listening){ try{recog.stop();}catch{ /* ignore */ } return; }
+  recog=new SR(); recog.lang="en-US"; recog.interimResults=true; recog.continuous=false;
+  const btn=$(btnId), inp=$(inputId);
+  recog.onstart=()=>{ listening=true; btn?.classList.add("listening"); };
+  recog.onend=()=>{ listening=false; btn?.classList.remove("listening"); };
+  recog.onerror=()=>{ listening=false; btn?.classList.remove("listening"); };
+  recog.onresult=e=>{ let t=""; for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript; if(inp)inp.value=t; };
+  try{ recog.start(); }catch{ /* ignore */ }
 };
-/* haptics + voice out */
-function cmpBuzz(pattern){ try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){} }
-let cmpVoiceOn = (localStorage.getItem("cmp-voice")==="1");
-function cmpSpeak(text){
-  if(!cmpVoiceOn) return;
-  try{
-    const u=new SpeechSynthesisUtterance(text.replace(/[✦✠🙏💛🕊️🔥🕯️]/g,""));
-    u.rate=0.96; u.pitch=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u);
-  }catch(e){}
-}
-window.cmpToggleVoice=()=>{ cmpVoiceOn=!cmpVoiceOn; localStorage.setItem("cmp-voice",cmpVoiceOn?"1":"0");
-  const b=$("cmp-voice-btn"); if(b){b.textContent=cmpVoiceOn?"🔊":"🔇"; b.title=cmpVoiceOn?"Voice on":"Voice off";}
-  if(cmpVoiceOn) cmpSpeak("I'm here."); };
+let voiceOn=(localStorage.getItem("cmp-voice")==="1");
+function speak(text){ if(!voiceOn||!text)return; try{ const u=new SpeechSynthesisUtterance(text.replace(/[✦✠🙏💛🕊️🔥🕯️]/g,"")); u.rate=0.96; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch{ /* ignore */ } }
+A.beaconVoice=()=>{ voiceOn=!voiceOn; localStorage.setItem("cmp-voice",voiceOn?"1":"0"); const b=$("b-voice"); if(b)b.textContent=voiceOn?"🔊":"🔇"; if(voiceOn)speak("I'm here."); };
