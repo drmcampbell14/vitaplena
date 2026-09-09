@@ -1,7 +1,7 @@
 /* Vita Plena — Pray: the liturgical day, the Mass readings, the rhythm, the prayer
    library with full-screen readers and guided flows (Rosary, Chaplet, Examen),
    confession, the plan of life, books, and the virtue of the month. */
-import { S, db, esc, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAINTS, EXAMEN_Q, VIRTUES, DOWS, season,
+import { S, db, esc, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAINTS, EXAMEN_Q, DOWS, season,
   saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, profOf, toast,
   feastKey, usccbUrl, mysteriesFor, fastAbstinence } from "../core/data.js";
 import { PRAYERS, findPrayer, prayerById, rosarySteps, chapletSteps, examenSteps } from "../content/prayers.js";
@@ -54,7 +54,6 @@ function render(){
   if(clog.length){ const last=new Date(clog[clog.length-1]+"T12:00"), days=Math.floor((now-last)/864e5); confLine=`Last: ${last.toLocaleDateString(undefined,{month:"long",day:"numeric"})} · ${days}d ago`; const due=cad-days; confDue=due>0?`Next within ${due} day${due===1?"":"s"}`:"It's time. The font of mercy is open."; }
 
   const examens=S.items.filter(i=>i.kind==="examen"&&isMine(i)).sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
-  const v=S.state.virtue||{};
 
   $("page-pray").innerHTML=`
     <div class="card lit-card"><div class="bar"></div><div class="body">
@@ -105,16 +104,6 @@ function render(){
       <div class="verse-line">“${esc(EXAMEN_Q[dayIdx(now)%EXAMEN_Q.length])}”</div>
       <button class="btn block" style="margin-top:12px" onclick="A.openPrayer('examen')">${ICON.candle} Make tonight's examen</button>
       ${examens.length?`<details style="margin-top:12px"><summary class="hint" style="cursor:pointer">Past examens, private to you</summary>${examens.map(l=>`<div class="row"><div class="grow"><div class="qhist" style="font-size:16px">${esc(l.text)}</div><div class="sub">${new Date(l.createdAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</div></div><button class="x" onclick="A.delItem('${l.id}')">×</button></div>`).join("")}</details>`:""}
-    </div>
-
-    <div class="card">
-      <div class="sec-row"><h2 class="sec">Virtue of the month</h2></div>
-      <div class="hint">One virtue, one month, one concrete practice. ${now.toLocaleDateString(undefined,{month:"long"})}.</div>
-      <label class="f">Virtue</label>
-      <select id="virtue-sel"><option value="">— choose —</option>${VIRTUES.map(x=>`<option ${x===v.name?"selected":""}>${x}</option>`).join("")}</select>
-      <label class="f">The practice</label>
-      <input id="virtue-res" value="${esc(v.res||"")}" placeholder="One small, repeatable act">
-      <div class="actions"><button class="btn" onclick="A.saveVirtue()">Save</button></div>
     </div>
 
     <div class="card">
@@ -173,7 +162,6 @@ A.rmConfession=ds=>{ const conf=(S.state.confession||{})[S.user.uid]||{}; const 
 A.setCadence=v=>saveField(`confession.${S.user.uid}.cadence`,+v);
 A.addPlan=()=>{ const v=$("plan-in").value.trim(); if(!v)return; saveKey("plan",(S.state.plan||[]).concat([{id:rid(),text:v}])); };
 A.rmPlan=id=>saveKey("plan",(S.state.plan||[]).filter(p=>p.id!==id));
-A.saveVirtue=()=>{ const name=$("virtue-sel").value; if(!name)return toast("Choose a virtue first"); saveKey("virtue",{name,res:$("virtue-res").value.trim(),month:new Date().getMonth()}); toast("Virtue saved"); };
 A.delItem=id=>delItem(id);
 
 /* ---------------- readers ---------------- */
