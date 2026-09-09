@@ -26,7 +26,7 @@ export function taskDoneOn(t,dateS){return t.repeat?!!((t.doneDates||{})[dateS])
 
 export function repeatLabel(t){
   if(!t.repeat)return t.due?("Due "+new Date(t.due+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})):"";
-  if(t.repeat.type==="weekly")return "↻ "+[1,2,3,4,5,6,0].filter(d=>(t.repeat.days||[]).includes(d)).map(d=>DOWS[d]).join(" · ");
+  if(t.repeat.type==="weekly"){ const ds=t.repeat.days||[]; if(ds.length===7)return "↻ daily"; return "↻ "+[1,2,3,4,5,6,0].filter(d=>ds.includes(d)).map(d=>DOWS[d]).join(" · "); }
   if(t.repeat.type==="monthly")return "↻ the "+ordinal(t.repeat.dom||1)+" of each month";
   return "↻ every "+t.repeat.n+" days";
 }

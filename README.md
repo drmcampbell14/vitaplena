@@ -48,8 +48,9 @@ src/content/prayers.js       the prayer library and guided flows
 src/core/                    data (Firebase, state, writes), liturgical, recurrence, util, bells
 src/ui/dom.js                sheet, modal, toast, icons, the A action registry
 src/styles/app.css           design system
-netlify/functions/           companion.mjs
-public/                      manifest, service worker, icons
+netlify/functions/           companion (Beacon), household-admin, ics (calendar feed), briefing (scheduled, Sundays)
+netlify/functions/_shared/   admin (Firebase Admin, auth, quotas), ics builder
+public/                      manifest, service worker, icons, privacy.html, terms.html
 firestore.rules              security rules (published by hand until CI deploy lands)
 test/                        Vitest
 ```

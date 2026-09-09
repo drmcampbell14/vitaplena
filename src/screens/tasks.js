@@ -3,6 +3,7 @@
 import { S, esc, rid, fmtT, todayS, ymd, addD, DOWS, saveField, addItem, updItem, delItem,
   taskDoneOn, repeatLabel, profOf, ordinal, ensureSection } from "../core/data.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, toast } from "../ui/dom.js";
+import { who, assigneeOn, assignees } from "../core/people.js";
 import { registerScreen } from "../app/shell.js";
 
 let _projects=[];
@@ -17,15 +18,16 @@ function render(){
     seen[k].ids.push(sec.id); if(sec.emoji&&seen[k].emoji==="📌")seen[k].emoji=sec.emoji;
   }));
   const knownIds=new Set(_projects.flatMap(p=>p.ids));
-  const groups=[{key:S.user.uid,label:profOf(S.user.uid).name},...members.filter(u=>u!==S.user.uid).map(u=>({key:u,label:profOf(u).name})),{key:"together",label:"Together"}];
+  const today=todayS();
+  const groups=assignees().map(w=>({key:w.key,label:(w.emoji?w.emoji+" ":"")+w.name}));
   const projectCard=(pr,idx,tasks)=>{
-    const inner=groups.map(g=>{ const ts=tasks.filter(t=>t.area===g.key).sort(taskSort); if(!ts.length)return ""; return `<div class="fin-cat">${esc(g.label)}</div>`+ts.map(taskRow).join(""); }).join("");
+    const inner=groups.map(g=>{ const ts=tasks.filter(t=>assigneeOn(t,today)===g.key).sort(taskSort); if(!ts.length)return ""; return `<div class="fin-cat">${esc(g.label)}</div>`+ts.map(taskRow).join(""); }).join("");
     return `<div class="card"><div class="sec-row"><div class="proj-head"><span class="emoji" style="width:auto">${pr.emoji}</span><h2 class="sec">${esc(pr.name)}</h2></div>${idx>=0?`<button class="x" onclick="A.rmProject(${idx})">×</button>`:""}</div>${inner||'<div class="empty">Nothing here yet.</div>'}</div>`;
   };
   let html=_projects.map((pr,idx)=>projectCard(pr,idx,S.items.filter(i=>i.kind==="task"&&pr.ids.includes(i.sectionId)))).join("");
   const orphans=S.items.filter(i=>i.kind==="task"&&!knownIds.has(i.sectionId));
   if(orphans.length)html+=projectCard({name:"Unsorted",emoji:"🗂",ids:[]},-1,orphans);
-  const open=S.items.filter(i=>i.kind==="task"&&!i.done&&(i.area===S.user.uid||i.area==="together")).length;
+  const open=S.items.filter(i=>i.kind==="task"&&!i.done&&["together",S.user.uid].includes(assigneeOn(i,today))).length;
 
   $("page-tasks").innerHTML=`
     <div class="card">
@@ -39,7 +41,8 @@ function render(){
 }
 function taskRow(t){
   const today=todayS(), on=taskDoneOn(t,today), sub=repeatLabel(t);
-  return `<div class="row"><button class="chk ${on?"on":""}" onclick="toggleTaskOn('${t.id}','${today}')">${ICON.check}</button><div class="grow"><div class="title ${on?"done-text":""}">${esc(t.text)}</div><div class="kind">${t.area==="together"?"Together":"For "+esc(profOf(t.area).name)}${sub?" · "+sub:""}</div></div><button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button></div>`;
+  const w=who(assigneeOn(t,today));
+  return `<div class="row"><button class="chk ${on?"on":""}" onclick="toggleTaskOn('${t.id}','${today}')">${ICON.check}</button><div class="grow"><div class="title ${on?"done-text":""}">${esc(t.text)}</div><div class="kind">${w.kind==="together"?"Together":"For "+esc(w.name)}${t.rotate?.length>1?" · rotates weekly":""}${sub?" · "+sub:""}</div></div><button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button></div>`;
 }
 
 /* ---- natural-language quick add (local parser) ---- */
@@ -49,8 +52,7 @@ function qaParse(raw){
   let s=" "+raw.toLowerCase()+" ";
   const out={text:raw.trim(),repeat:null,due:"",when:null,area:S.user.uid};
   if(/\b(together|for us|our |shared)\b|^together:/.test(s.trim()))out.area="together";
-  const members=S.house.members||[];
-  for(const u of members){ const nm=(profOf(u).name||"").toLowerCase(); if(nm&&new RegExp("\\b"+nm+"\\b").test(s)){ out.area=u; break; } }
+  for(const a of assignees()){ if(a.kind==="me"||a.kind==="together")continue; const nm=(a.name||"").toLowerCase(); if(nm&&new RegExp("\\b"+nm+"\\b").test(s)){ out.area=a.key; break; } }
   let dow=null; for(const k in QA_DOW){ if(new RegExp("\\b"+k+"s?\\b").test(s)){dow=QA_DOW[k];break;} }
   let m=s.match(/every\s+(\d+)\s*(day|days|week|weeks)/);
   if(m){ let n=parseInt(m[1]); if(/week/.test(m[2]))n*=7; out.repeat={type:"every",n,anchor:qaAnchorForDow(dow)}; }
@@ -71,7 +73,7 @@ function qaMonthDay(s){ const m=s.match(/(\d{1,2})(st|nd|rd|th)/); return m?Math
 function qaTimeHint(s){ const m=s.match(/(\d{1,2})(:\d{2})?\s*(am|pm)/); if(m){let h=+m[1];if(m[3]==="pm"&&h<12)h+=12;if(m[3]==="am"&&h===12)h=0;return String(h).padStart(2,"0")+(m[2]||":00");} if(/after work|evening|tonight/.test(s))return "evening"; if(/morning/.test(s))return "morning"; if(/afternoon|lunch|noon/.test(s))return "afternoon"; return null; }
 function qaCleanText(raw){
   let t=raw.trim().replace(/^together:\s*/i,"");
-  (S.house.members||[]).forEach(u=>{ const nm=profOf(u).name; if(nm)t=t.replace(new RegExp("\\b(for\\s+)?"+nm+"\\b","ig"),""); });
+  assignees().forEach(a=>{ if(a.kind==="me"||a.kind==="together")return; const nm=a.name; if(nm)t=t.replace(new RegExp("\\b(for\\s+)?"+nm+"\\b","ig"),""); });
   t=t.replace(/\bevery\s+\d+\s*(days?|weeks?)\b/ig,"").replace(/\b(daily|everyday|weekly|biweekly|fortnightly|monthly|every day)\b/ig,"")
     .replace(/\bon\s+the\s+\d{1,2}(st|nd|rd|th)\b/ig,"").replace(/\bthe\s+\d{1,2}(st|nd|rd|th)(\s+of\s+(the\s+|each\s+|every\s+)?month)?\b/ig,"").replace(/\bof\s+(the\s+|each\s+|every\s+)?month\b/ig,"")
     .replace(/\b(on|every)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|tues|wed|thu|thurs|fri|sat)s?\b/ig,"").replace(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?\b/ig,"")
@@ -90,7 +92,7 @@ A.quickAddParse=()=>{
   const raw=$("qa-in").value.trim(); if(!raw)return;
   const p=qaParse(raw); window._qaPending=p;
   const {sched,whenLabel}=qaDescribe(p);
-  $("qa-preview").innerHTML=`<div class="qa-parsed"><div style="font-weight:600;margin-bottom:6px">${esc(p.text||"(untitled)")}</div><div class="chips"><span class="chip">↻ ${sched}</span><span class="chip">${p.area==="together"?"Together":"For "+esc(profOf(p.area).name)}</span>${whenLabel?`<span class="chip">🕐 ${whenLabel}</span>`:""}</div>
+  $("qa-preview").innerHTML=`<div class="qa-parsed"><div style="font-weight:600;margin-bottom:6px">${esc(p.text||"(untitled)")}</div><div class="chips"><span class="chip">↻ ${sched}</span><span class="chip">${p.area==="together"?"Together":"For "+esc(who(p.area).name)}</span>${whenLabel?`<span class="chip">🕐 ${whenLabel}</span>`:""}</div>
     <div class="qa-actions"><button class="btn sm" onclick="A.quickAddConfirm()">Add it</button><button class="btn ghost sm" onclick="A.quickAddEditFull()">Adjust</button></div></div>`;
   $("qa-preview").classList.add("show");
 };
@@ -112,15 +114,17 @@ A.quickAddEditFull=()=>{
 /* ---- task + project modals ---- */
 A.openTaskModal=(areaPre,duePre,editId)=>{
   const t=editId?S.items.find(i=>i.id===editId):null;
-  const members=S.house.members||[];
   const area=t?t.area:(areaPre&&areaPre!=="all"?areaPre:S.user.uid);
-  const areaOpts=members.map(u=>`<option value="${u}" ${area===u?"selected":""}>${esc(profOf(u).name)}</option>`).join("")+`<option value="together" ${area==="together"?"selected":""}>Together</option>`;
+  const rot=(t&&Array.isArray(t.rotate))?t.rotate:[];
+  const areaOpts=assignees().map(w=>`<option value="${w.key}" ${area===w.key?"selected":""}>${w.emoji?w.emoji+" ":""}${esc(w.name)}</option>`).join("");
+  const rotChips=assignees().filter(w=>w.kind!=="together").map(w=>`<button type="button" class="chip ${rot.includes(w.key)?"lit":""}" data-k="${w.key}" onclick="this.classList.toggle('lit')">${w.emoji?w.emoji+" ":""}${esc(w.name)}</button>`).join("");
   const rep=t&&t.repeat?t.repeat:null;
   const mode=rep?rep.type:(t&&t.due?"due":(duePre?"due":"none"));
   const MODES=[["none","No date"],["due","A date"],["weekly","Weekdays"],["every","Every N days"],["monthly","Monthly"]];
   openModal(`<h3>${t?"Edit task":"New task"}</h3>
     <label class="f">Task</label><input id="m-t-text" value="${t?esc(t.text):""}" placeholder="e.g. Vacuum the house">
     <label class="f">For</label><select id="m-t-area" onchange="A.taskAreaChange()">${areaOpts}</select>
+    <label class="f">Rotate weekly between</label><div class="chips" id="m-t-rot">${rotChips}</div><div class="hint" style="margin-top:6px">Pick two or more and the chore passes to the next person each week.</div>
     <label class="f">Project</label><select id="m-t-sec"></select>
     <label class="f">Schedule</label>
     <div class="pills" id="m-t-mode" data-v="${mode}">${MODES.map(([v,l])=>`<button class="pill ${mode===v?"on":""}" data-m="${v}" onclick="A.taskMode('${v}')">${l}</button>`).join("")}</div>
@@ -140,7 +144,8 @@ A.taskAreaChange=selId=>{
 };
 A.saveTaskModal=editId=>{
   const text=$("m-t-text").value.trim(); if(!text)return toast("Name the task");
-  const area=$("m-t-area").value; let sectionId=$("m-t-sec").value;
+  const rotate=[...document.querySelectorAll("#m-t-rot .chip.lit")].map(b=>b.dataset.k);
+  const area=rotate.length>=2?rotate[0]:$("m-t-area").value; let sectionId=$("m-t-sec").value;
   if(sectionId==="__none"){ const secs=S.state.taskSections||{}; let gen=null; Object.keys(secs).forEach(a=>{const hit=(secs[a]||[]).find(x=>(x.name||"").toLowerCase()==="general");if(hit&&!gen)gen=hit;}); if(!gen){gen={id:rid(),name:"General",emoji:"📌"};saveField("taskSections.together",(secs.together||[]).concat([gen]));} sectionId=gen.id; }
   const rv=$("m-t-mode").dataset.v; let repeat=null,due="";
   if(rv==="due")due=$("m-t-due").value||todayS();
@@ -148,7 +153,7 @@ A.saveTaskModal=editId=>{
   if(rv==="every")repeat={type:"every",n:Math.max(1,+$("m-t-n").value||14),anchor:$("m-t-anchor").value||todayS()};
   if(rv==="monthly")repeat={type:"monthly",dom:Math.max(1,Math.min(31,+$("m-t-dom").value||1))};
   const prev=editId?S.items.find(i=>i.id===editId):null;
-  const data={kind:"task",text,area,sectionId,due,repeat,doneDates:(prev&&prev.doneDates)||{},done:prev?!!prev.done:false};
+  const data={kind:"task",text,area,sectionId,due,repeat,rotate:rotate.length>=2?rotate:null,doneDates:(prev&&prev.doneDates)||{},done:prev?!!prev.done:false};
   editId?updItem(editId,data):addItem(data); closeModal();
 };
 A.rmTask=id=>{ closeModal(); confirmModal("Delete this task?",()=>delItem(id)); };

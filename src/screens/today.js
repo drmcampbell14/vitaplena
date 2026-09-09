@@ -6,6 +6,7 @@
 import { S, esc, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, repeatLabel,
   doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
+import { who, assigneeOn, mineOn } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, toast } from "../ui/dom.js";
 import { registerScreen } from "../app/shell.js";
 
@@ -16,7 +17,7 @@ const hourOf=t=>+(t||"23:59").slice(0,2);
 export function todayTimeline(view=S.view){
   const date=todayS(), me=S.user.uid, dn=doneSet(date);
   const mineEv=e=>e.area==="together"||(e.area?e.area===me:e.owner===me);
-  const mineTask=t=>t.area===me||t.area==="together";
+  const mineTask=t=>mineOn(t,date);
   const items=[];
   (S.state.practices||[]).filter(p=>scheduledToday(p)).forEach(p=>items.push({t:p.time||"23:58",kind:"practice",p,done:dn.has(p.id)}));
   S.items.filter(i=>i.kind==="event"&&i.date===date&&(view==="house"||mineEv(i))).forEach(e=>items.push({t:e.time||"00:00",kind:"event",e}));
@@ -36,7 +37,7 @@ function render(){
 
   /* alerts */
   const alerts=[];
-  const overdue=S.items.filter(i=>i.kind==="task"&&!i.repeat&&!i.done&&i.due&&i.due<date&&(i.area===me||i.area==="together")).length;
+  const overdue=S.items.filter(i=>i.kind==="task"&&!i.repeat&&!i.done&&i.due&&i.due<date&&mineOn(i,date)).length;
   const conf=(S.state.confession||{})[me]||{};
   const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).slice().sort();
   if(clog.length){ const days=Math.floor((now-new Date(clog[clog.length-1]+"T12:00"))/864e5); if(days>=(conf.cadence||14))alerts.push(`<span class="chip gold">🕊 ${days} days since Confession</span>`); }
@@ -58,7 +59,7 @@ function render(){
   }).join("")||`<div class="card"><div class="empty">Nothing scheduled. A quiet day, Deo gratias.</div></div>`;
 
   /* ring: my practices + my tasks */
-  const mine=todayTimeline("me").filter(x=>x.kind!=="event");
+  const mine=todayTimeline("me").filter(x=>x.kind!=="event"&&!(x.kind==="task"&&assigneeOn(x.tk,date)!==me&&assigneeOn(x.tk,date)!=="together"));
   const kept=mine.filter(x=>x.done).length, total=mine.length;
   const off=total?Math.round(163*(1-kept/total)):163;
 
@@ -80,6 +81,7 @@ function render(){
     ${S.lastBeacon?`<div class="beacon-reply"><div class="who">Beacon</div>${esc(S.lastBeacon.say)}${S.lastBeacon.chips?.length?`<div class="chips">${S.lastBeacon.chips.map(c=>`<span class="chip ${c.terra?"warn":"lit"}">${esc(c.label)}</span>`).join("")}</div>`:""}</div>`:""}
     <div class="seg" style="margin-bottom:14px"><button class="${S.view==="me"?"on":""}" onclick="A.setView('me')">Me</button><button class="${S.view==="house"?"on":""}" onclick="A.setView('house')">Household</button></div>
     ${nextHtml}
+    ${S.briefing?`<div class="card tint"><div class="eyebrow lit">The week ahead · ${new Date(S.briefing.weekOf+"T12:00").toLocaleDateString(undefined,{month:"long",day:"numeric"})}</div><div class="brief">${esc(S.briefing.text)}</div></div>`:""}
     ${tlHtml}
     <div class="card" style="margin-top:18px"><div class="ring-wrap">
       <svg class="ring" viewBox="0 0 60 60"><circle class="bg" cx="30" cy="30" r="26"/><circle class="fg" cx="30" cy="30" r="26" stroke-dasharray="163" stroke-dashoffset="${off}"/></svg>
@@ -135,7 +137,7 @@ function row(x,isNow){
   const t=x.tk;
   return `<div class="tl-row ${x.done?"done":""}">
     <button class="chk ${x.done?"on":""}" onclick="A.toggleTaskOn('${t.id}','${date}')">${ICON.check}</button>
-    <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(t.text)}</div><div class="kind">${t.area==="together"?"Together":"For "+esc(profOf(t.area).name)}${repeatLabel(t)?" · "+repeatLabel(t):""}</div></div>
+    <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(t.text)}</div><div class="kind">${(w=>w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date)))}${t.rotate?.length>1?" · rotates":""}${repeatLabel(t)?" · "+repeatLabel(t):""}</div></div>
     <button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button>
   </div>`;
 }

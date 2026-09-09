@@ -161,6 +161,8 @@ Read CLAUDE.md and VITA-PLENA-FINAL-PRODUCT-SPEC.md. Phase 1, task 1.3 (usage qu
 ### Where things are (2026-09-08, revision 3)
 Branch `claude/phase-1-security-auth-hsb3x5` carries the v5 build. **The entire front end was rebuilt on 2026-09-08**: new design system (liturgical colour of the day), five tabs, Today as a rhythm view with Me/Household, Beacon capture bar, the bells (client-side), the prayer library with guided Rosary / Chaplet / Examen, Mass readings via USCCB + Universalis, rebuilt onboarding, PWA (manifest, service worker, icons), and a `?demo=1` preview mode. `main` is the untouched v4 and stays live.
 
+**Revision 4 (2026-09-09), the rest of the spec, minus the games (dropped by Mitch):** 2.1 people and assignment ✓ (`state.people`, tasks assigned to members, people, or together; weekly rotation `task.rotate`) · 2.5 chore rotation ✓ · 2.15 family mode ✓ (menu, `?family=1`) · 2.6 week view ✓ · 2.14 first-day tour ✓ · 1.3 quotas ✓ (`meta/usage`, trial 40 / paid 150) · 1.4 household-admin function ✓ (leave, remove, regenerate code, transfer, delete household, delete account) · 1.6 `.ics` feed ✓ (`/.netlify/functions/ics`) · 3.3 Sunday briefing ✓ (scheduled function, card on Today, email when `RESEND_API_KEY` is set) · 4.2 export + account deletion ✓ · 5.1 entitlements field ✓ (30-day trial on create; only `lapsed` refuses, never set automatically) · 7.2 privacy + terms ✓ (`/privacy.html`, `/terms.html`). Still needing a console or Apple: 1.5 server-side Google OAuth, 3.1/3.2 push when closed (FCM), 6.2 Sign in with Apple, 2.7 romcal / 1962 calendar, 2.8 Douay-Rheims text. **Rules changed in revision 4** (members may no longer write `owner` or `code`): re-publish `firestore.rules`.
+
 Built in the rebuild, against the phase list: 2.2 Today ✓ · 2.3 bells (client-side) ✓ · 2.4 Beacon (name, capture bar, chips; prompt versioning and the 20-scenario suite still open) · 2.5 tasks (UI ✓; chore rotation open) · 2.6 calendar (month ✓; week view and two-way open) · 2.8 readings (USCCB link + Universalis text ✓; Douay-Rheims and Butler's Lives open) · 2.9 prayers ✓ · 2.10 Us ✓ · 2.13 More ✓ · 2.14 onboarding ✓ (tour open) · PWA ✓ · 6.4 demo account ✓ (`?demo=1`). Still open in Phase 2: 2.1 people model (famSections exists; assignment to people does not), 2.7 romcal + 1962 calendar, 2.11/2.12 the games, 2.15 family mode.
 
 **The App Store path from here:** Capacitor wraps `dist/` as-is (see README). Blocking items are all outside the code: Apple Developer enrollment, Sign in with Apple (6.2), a privacy policy and support URL (7.2), then archive → TestFlight → review.
@@ -173,7 +175,9 @@ Netlify: **Site configuration → Build & deploy → Continuous deployment → B
 |---|---|---|
 | `ANTHROPIC_API_KEY` | (existing) | companion |
 | `FIREBASE_SERVICE_ACCOUNT` | service-account JSON, minified to one line | companion (1.2), everything server-side after |
-| `ALLOWED_ORIGIN` | `https://vitaplena13.netlify.app` (no trailing slash) | companion, optional; Netlify's own URLs are always allowed |
+| `ALLOWED_ORIGIN` | a custom domain, when there is one | all functions, optional; the site's own origin is always allowed |
+| `RESEND_API_KEY` | from resend.com (free tier) | Sunday briefing email, optional; without it the briefing still appears on Today |
+| `BRIEFING_FROM` | e.g. `Vita Plena <briefing@yourdomain>` | briefing email sender, optional (needs a verified domain in Resend) |
 
 Service account: Firebase Console → gear → Project settings → **Service accounts** → **Generate new private key**. Minify with `python3 -c "import json,sys;print(json.dumps(json.load(sys.stdin)))" < key.json`. Delete the download afterward. It bypasses all rules; it lives in Netlify only.
 

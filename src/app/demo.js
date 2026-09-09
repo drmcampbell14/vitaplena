@@ -13,7 +13,8 @@ export function loadDemo(){
   S.demo=true;
   S.user={uid:me,displayName:"Mitch Campbell",email:"mitch@example.com",getIdToken:async()=>"demo"};
   S.hid="demo-household";
-  S.house={name:"The Campbell Household",code:"ADVENT",members:[me,her],profiles:{[me]:{name:"Mitch",initials:"MC"},[her]:{name:"Liz",initials:"LC"}},countdown:{label:"Advent begins",date:"2026-11-29"}};
+  S.house={name:"The Campbell Household",code:"ADVENT",owner:me,members:[me,her],profiles:{[me]:{name:"Mitch",initials:"MC"},[her]:{name:"Liz",initials:"LC"}},countdown:{label:"Advent begins",date:"2026-11-29"},subscription:{status:"trial",plan:"family",source:"none",trialEndsAt:d(21)}};
+  S.briefing={weekOf:d(-((new Date().getDay())||7)),text:"Mitch and Liz, the week opens in Ordinary Time and closes with the Exaltation of the Holy Cross on Sunday. Clinic runs both blocks on Tuesday and Thursday; the Kellys come Tuesday evening, so the Rosary moves to after dinner that night. Anna's CCD sign-up is due Friday, and the case notes are already a day behind. Keep the Rosary each evening and let the rest fall in around it; a house that prays at seven o'clock has already won the day."};
   S.profile=S.house.profiles[me];
   S.state={
     wake:"06:30",marriageRhythm:"weekly",
@@ -31,6 +32,7 @@ export function loadDemo(){
     focus:[{id:"f1",text:"Finish the case notes by Thursday",done:false},{id:"f2",text:"Call Fr. Michael about the baptism",done:true}],
     countdowns:[{id:"c1",label:"Liz's birthday",date:d(23)}],
     confession:{[me]:{cadence:14,log:[d(-9)]}},
+    people:[{id:"k1",name:"Anna",emoji:"👧",role:"child"},{id:"k2",name:"Joseph",emoji:"👦",role:"child"},{id:"k3",name:"Gordie",emoji:"🐕",role:"pet"}],
     famSections:[{id:"fm1",name:"Gordie",emoji:"🐕",notes:[]}],
     virtue:{name:"Patience",res:"Count to three before answering the kids."},
     meals:{1:{b:"Oatmeal",l:"Leftovers",d:"Chicken and rice"},4:{b:"",l:"",d:"Fish tacos"}},
@@ -55,6 +57,9 @@ export function loadDemo(){
     item({kind:"task",text:"Plan Advent wreath night",area:"together",sectionId:"s3",due:d(10),repeat:null,doneDates:{},done:false}),
     item({kind:"task",text:"Case notes",area:me,sectionId:"s1",due:d(-1),repeat:null,doneDates:{},done:false}),
     item({kind:"task",text:"Wash the dogs",area:"together",sectionId:"s2",repeat:{type:"every",n:14,anchor:d(-3)},doneDates:{},done:false}),
+    item({kind:"task",text:"Feed Gordie",area:"p:k1",rotate:["p:k1","p:k2"],sectionId:"s2",repeat:{type:"weekly",days:[0,1,2,3,4,5,6]},doneDates:{},done:false}),
+    item({kind:"task",text:"Set the table",area:"p:k2",rotate:["p:k2","p:k1"],sectionId:"s2",repeat:{type:"weekly",days:[0,1,2,3,4,5,6]},doneDates:{[today]:true},done:false}),
+    item({kind:"task",text:"Empty the dishwasher",area:"p:k1",sectionId:"s2",repeat:{type:"weekly",days:[1,3,5]},doneDates:{},done:false}),
     item({kind:"book",title:"Introduction to the Devout Life",author:"St. Francis de Sales",start:d(-12),goal:15,log:{[d(-3)]:15,[d(-2)]:20,[d(-1)]:15},notes:[],finished:false}),
     item({kind:"examen",text:"Short with the kids at bedtime. Grateful for the quiet drive home."}),
     item({kind:"checkin",scale:4,pray:true,dateNight:false,appr:"You handled the insurance call so I didn't have to.",well:"",god:"",name:"",need:""}),

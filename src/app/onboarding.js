@@ -4,7 +4,7 @@
    Writes state/main with merge, so it also works as "set up my rule again". */
 import { S, db, rid, esc, DEFAULT_PRACTICES } from "../core/data.js";
 import { doc, setDoc } from "firebase/firestore";
-import { $, A, ICON, toast } from "../ui/dom.js";
+import { $, A, ICON, toast, openSheet } from "../ui/dom.js";
 import { BELL } from "../core/bells.js";
 
 const OB={
@@ -133,7 +133,18 @@ function done(){
     <div class="ob-actions" style="max-width:320px;margin:30px auto 0"><button class="btn block" onclick="A.obFinish()">Enter Vita Plena</button></div>
   </div>`;
 }
-A.obFinish=()=>{ $("onboard").classList.add("hide"); onDone(); };
+A.obFinish=()=>{ $("onboard").classList.add("hide"); onDone(); setTimeout(A.showTour,600); };
+
+/* The first-day tour: three cards, then Today. */
+A.showTour=()=>{
+  openSheet(`<div class="reader"><div class="eyebrow lit">Your first day</div><div class="r-title" style="font-size:30px">Three things to know</div>
+    <div class="tour" style="margin-top:14px">
+      <div class="tc"><div class="n">1 · Today</div><div class="t">The day, in order</div><div class="hint">Morning, the day, evening. Your prayers, your family's events, your tasks. Tap Done as you keep each one. Switch to Household to see everyone's.</div></div>
+      <div class="tc"><div class="n">2 · Beacon</div><div class="t">Just say it</div><div class="hint">The bar at the top of Today. "Rosary at 8." "Vacuum Tuesdays, Gordie." "Clear my afternoon." Beacon puts it where it belongs and tells you what it did.</div></div>
+      <div class="tc"><div class="n">3 · The bells</div><div class="t">The house rings</div><div class="hint">At each prayer's hour the app rings and the words are on the screen. Leave it open on a tablet in the kitchen and the whole house hears it. Quiet hours are in Settings.</div></div>
+    </div>
+    <button class="btn block" onclick="A.closeSheet()">Begin</button></div>`,{cls:"full"});
+};
 
 function fmt(t){ const [h,m]=t.split(":").map(Number); return ((h%12)||12)+":"+String(m).padStart(2,"0")+(h>=12?" PM":" AM"); }
 

@@ -139,8 +139,10 @@ async function createHousehold(){
   const code=uid6();
   $("btn-create").disabled=true;
   try{
+    const trialEnds=new Date(); trialEnds.setDate(trialEnds.getDate()+30);
     const href=await addDoc(collection(db,"households"),{
-      name:hname,code,members:[S.user.uid],profiles:{[S.user.uid]:{name,initials:ini}},
+      name:hname,code,owner:S.user.uid,members:[S.user.uid],profiles:{[S.user.uid]:{name,initials:ini}},
+      subscription:{status:"trial",plan:"family",source:"none",trialEndsAt:trialEnds.toISOString().slice(0,10)},
       countdown:{label:"",date:""},createdAt:serverTimestamp()});
     await setDoc(doc(db,"invites",code),{hid:href.id});
     await setDoc(doc(db,"households",href.id,"state","main"),{
@@ -148,7 +150,7 @@ async function createHousehold(){
       taskSections:{[S.user.uid]:[{id:rid(),name:"Career & Goals",emoji:"🎯"}],
         together:[{id:rid(),name:"Household",emoji:"🏡"},{id:rid(),name:"Faith",emoji:"✝️"},{id:rid(),name:"Health",emoji:"💪"}]},
       meals:{},grocery:[],budget:{income:[],expense:[],savings:[]},funds:[],debts:[],
-      focus:[],countdowns:[],books:[],virtue:{},confession:{},modules:{meals:false,finance:false,family:false,notes:false}});
+      focus:[],countdowns:[],books:[],virtue:{},confession:{},people:[],modules:{meals:false,finance:false,family:false,notes:false}});
     await setDoc(doc(db,"users",S.user.uid),{hid:href.id,name,initials:ini});
     S.hid=href.id;
     handlers.onCreated(href.id,name);

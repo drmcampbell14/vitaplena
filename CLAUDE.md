@@ -13,7 +13,11 @@ src/app/shell.js           tabs, header, liturgical colour tokens, render bus, g
 src/app/gate.js            sign in (email primary, Google secondary), create/join household
 src/app/onboarding.js      the rule in four steps: God, Family, The bells, Enter
 src/app/demo.js            sample household in memory (?demo=1); writes stay in memory
-src/screens/*.js           today, pray, calendar, tasks, us, more (settings + Meals/Finance/Family/Notes)
+src/screens/*.js           today, pray, calendar, tasks, us, more (settings + Meals/Finance/Family/Notes), family (family mode)
+src/core/state.js          S, bus, profOf, partnerName (no Firebase; importable in tests)
+src/core/people.js         people without accounts, assignee keys (uid | "together" | "p:<id>"), weekly rotation   (pure, tested)
+src/lib/api.js             callFn(name, body): POST to our functions with the user's ID token
+netlify/functions/         companion, household-admin, ics, briefing (scheduled); _shared/admin.mjs holds auth + quotas
 src/companion/companion.js Beacon: capture bar + sheet, state snapshot, action executor
 src/content/prayers.js     prayer library (why / does lines) + guided flows (Rosary, Chaplet, Examen)
 src/core/data.js           Firebase init, state S, write helpers (with demo branch), constants

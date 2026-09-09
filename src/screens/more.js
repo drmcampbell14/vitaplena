@@ -1,8 +1,11 @@
 /* Vita Plena — the menu, Settings, and the "More" modules (Meals, Finances,
    Family, Notes). Modules are off by default for new households and switched on
    in Settings; existing households keep whatever they had. */
-import { S, db, esc, rid, money, todayS, saveKey, saveField, addItem, updItem, delItem, isMine, profOf, debounce } from "../core/data.js";
+import { S, db, auth, esc, rid, money, todayS, ymd, saveKey, saveField, addItem, updItem, delItem, isMine, profOf, debounce } from "../core/data.js";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { callFn } from "../lib/api.js";
+import { people } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet, toast } from "../ui/dom.js";
 import { registerScreen, go, renderAll } from "../app/shell.js";
 import { BELL } from "../core/bells.js";
@@ -18,6 +21,7 @@ A.openMenu=()=>{
   ];
   openSheet(`<div class="reader menu-list" style="padding-bottom:20px"><div class="r-title" style="font-size:28px">${esc(S.house?.name||"Household")}</div>
     <div style="margin-top:10px">${rows.map(([k,l,s])=>`<div class="row" style="cursor:pointer" onclick="A.openMore('${k}')"><div class="grow"><div class="title">${esc(l)}</div>${s?`<div class="sub">${esc(s)}</div>`:""}</div>${ICON.chevron.replace('<svg','<svg style="width:18px;height:18px;color:var(--faint)"')}</div>`).join("")}
+    <div class="row" style="cursor:pointer" onclick="A.openFamilyMode()"><div class="grow"><div class="title">Family mode</div><div class="sub">Big type for the tablet on the counter</div></div></div>
     <div class="row" style="cursor:pointer" onclick="A.rerunOnboarding()"><div class="grow"><div class="title">Set up my rule again</div><div class="sub">Prayers, hours, the bells</div></div></div>
     <div class="row" style="cursor:pointer" onclick="A.installHelp()"><div class="grow"><div class="title">Put Vita Plena on your phone</div><div class="sub">Home screen, full screen, works offline</div></div></div>
     <div class="row" style="cursor:pointer" onclick="A.signOut()"><div class="grow"><div class="title" style="color:var(--warn)">Sign out</div></div></div>
@@ -40,40 +44,70 @@ function render(){
 function settings(){
   const st=BELL.settings;
   const perm=("Notification" in window)?Notification.permission:"unsupported";
+  const me=S.user.uid, owner=S.house.owner||(S.house.members||[])[0], isOwner=owner===me;
+  const members=S.house.members||[];
+  const sub=S.house.subscription;
+  let plan="Founders' household · no subscription needed";
+  if(sub){ if(sub.status==="trial"){ const left=Math.ceil((new Date(sub.trialEndsAt+"T12:00")-new Date())/864e5); plan=`Free trial · ${left>0?left+" days left":"ended"} · Beacon ${QUOTA_TRIAL} messages a day`; } else if(sub.status==="active")plan="Family plan · active"; else if(sub.status==="lapsed")plan="Subscription lapsed · Beacon is resting"; }
   return `
     <div class="card"><div class="sec-row"><h2 class="sec">You</h2></div>
       <label class="f">Name</label><input id="set-name" value="${esc(S.profile?.name||"")}">
       <label class="f">Initials</label><input id="set-initials" value="${esc(S.profile?.initials||"")}" maxlength="3" style="text-transform:uppercase">
       <div class="actions"><button class="btn" onclick="A.saveProfile()">Save</button></div></div>
+
     <div class="card"><div class="sec-row"><h2 class="sec">The bells</h2></div>
       <div class="kv"><div class="k">Ring on this device<small>At each practice's hour, while the app is open</small></div><button class="switch ${st.on?"on":""}" onclick="A.bellSet('on',${!st.on})"></button></div>
       <label class="f">Sound</label><div class="pills">${[["bell","Church bell"],["chime","Soft chime"],["silent","Silent"]].map(([v,l])=>`<button class="pill ${st.sound===v?"on":""}" onclick="A.bellSet('sound','${v}')">${l}</button>`).join("")}<button class="pill" onclick="A.bellTest()">▶ Hear it</button></div>
       <div class="two" style="margin-top:12px"><div><label class="f">Quiet from</label><input type="time" value="${st.quietFrom}" onchange="A.bellSet('quietFrom',this.value)"></div><div><label class="f">Until</label><input type="time" value="${st.quietTo}" onchange="A.bellSet('quietTo',this.value)"></div></div>
       <div class="kv" style="margin-top:8px"><div class="k">Notifications<small>${perm==="granted"?"Allowed. The bell can reach you when the app is in the background.":perm==="denied"?"Blocked in browser settings.":perm==="unsupported"?"Not supported in this browser.":"Not asked yet."}</small></div>${perm==="default"?`<button class="btn sm" onclick="A.bellPerm()">Allow</button>`:""}</div>
+      <div class="kv"><div class="k">Family mode<small>Big type for a tablet on the counter. Open with the menu, or add ?family=1 to the address.</small></div><button class="btn sm ghost" onclick="A.openFamilyMode()">Open</button></div>
     </div>
+
+    <div class="card"><div class="sec-row"><h2 class="sec">People</h2><button class="btn ghost sm" onclick="A.openPersonModal()">${ICON.plus} Person</button></div>
+      <div class="hint">Children, a grandparent, the dog. No accounts; chores can be assigned to them and they appear in family mode.</div>
+      ${people().map(p=>`<div class="row"><div class="emoji">${p.emoji||"💛"}</div><div class="grow"><div class="title">${esc(p.name)}</div><div class="sub">${esc(p.role||"")}</div></div><button class="editp" onclick="A.openPersonModal('${p.id}')">${ICON.edit}</button></div>`).join("")||'<div class="empty">Nobody added yet.</div>'}
+    </div>
+
     <div class="card"><div class="sec-row"><h2 class="sec">Household</h2></div>
       <label class="f">Name</label><input id="set-house" value="${esc(S.house.name||"")}">
       <div class="actions"><button class="btn" onclick="A.saveHouse()">Save</button></div>
       <label class="f">Invite code</label>
-      <div style="display:flex;align-items:center;gap:12px"><div class="code">${esc(S.house.code||"······")}</div><button class="btn ghost sm" onclick="A.copyInvite()">Copy</button></div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div class="code">${esc(S.house.code||"······")}</div><button class="btn ghost sm" onclick="A.copyInvite()">Copy</button>${isOwner?`<button class="btn ghost sm" onclick="A.regenCode()">New code</button>`:""}</div>
       <div class="hint" style="margin-top:6px">Text it to your spouse. They tap Join household and enter it.</div>
       <label class="f">Members</label>
-      ${(S.house.members||[]).map(u=>{const p=profOf(u);return `<div class="member-row"><div class="big-av">${esc(p.initials)}</div><div class="grow title">${esc(p.name)}${u===S.user.uid?" (you)":""}</div></div>`;}).join("")}
-      ${(S.state.famSections||[]).length?`<label class="f">People</label><div class="chips">${(S.state.famSections||[]).map(f=>`<span class="chip">${esc(f.name)}</span>`).join("")}</div>`:""}
+      ${members.map(u=>{const p=profOf(u);return `<div class="member-row"><div class="big-av">${esc(p.initials)}</div><div class="grow"><div class="title">${esc(p.name)}${u===me?" (you)":""}</div><div class="sub">${u===owner?"Owner":"Member"}</div></div>${isOwner&&u!==me?`<button class="btn ghost sm" onclick="A.transferOwner('${u}','${esc(p.name)}')">Make owner</button><button class="x" onclick="A.removeMember('${u}','${esc(p.name)}')">×</button>`:""}</div>`;}).join("")}
+      <div class="chips" style="margin-top:14px">${!isOwner||members.length===1?`<button class="chip" onclick="A.leaveHousehold()">Leave household</button>`:""}${isOwner?`<button class="chip warn" onclick="A.deleteHousehold()">Delete household</button>`:""}</div>
     </div>
-    <div class="card"><div class="sec-row"><h2 class="sec">Google Calendar</h2></div>
-      <div class="hint">${S.gcalConnected?"Connected on this device. Events sync into the household.":"Not connected on this device."}</div>
-      <div class="actions"><button class="btn" onclick="connectGcal()">${S.gcalConnected?"Sync now":"Connect"}</button></div>
+
+    <div class="card"><div class="sec-row"><h2 class="sec">Calendars</h2></div>
+      <div class="kv"><div class="k">Google Calendar<small>${S.gcalConnected?"Connected on this device. Events sync into the household.":"Not connected on this device. Reconnects each session for now."}</small></div><button class="btn sm" onclick="connectGcal()">${S.gcalConnected?"Sync":"Connect"}</button></div>
+      <div class="kv"><div class="k">Apple Calendar, Outlook<small>Subscribe to the household's rhythm and events as a calendar feed.</small></div><button class="btn sm ghost" onclick="A.getFeed()">Get link</button></div>
+      <div id="feed-out"></div>
     </div>
+
+    <div class="card"><div class="sec-row"><h2 class="sec">The Sunday briefing</h2></div>
+      <div class="hint">Every Sunday at 5 PM Eastern, a short note for the week ahead appears on Today${S.briefing?" (latest: week of "+esc(S.briefing.weekOf)+")":""}. You can write one now.</div>
+      <div class="actions"><button class="btn ghost" id="brief-btn" onclick="A.writeBriefing()">Write this week's briefing</button></div>
+    </div>
+
+    <div class="card"><div class="sec-row"><h2 class="sec">Plan</h2></div>
+      <div class="row"><div class="emoji">✠</div><div class="grow"><div class="title">${esc(plan)}</div><div class="sub">Family subscriptions arrive with the App Store release. Nothing is charged before then.</div></div></div>
+    </div>
+
     <div class="card"><div class="sec-row"><h2 class="sec">More tools</h2></div>
       ${MODULES.map(([k,l,e])=>`<div class="kv"><div class="k">${e} ${l}</div><button class="switch ${modOn(k)?"on":""}" onclick="A.toggleModule('${k}',${!modOn(k)})"></button></div>`).join("")}
     </div>
-    <div class="card"><div class="sec-row"><h2 class="sec">Join another household</h2></div>
-      <div class="hint">If you and your spouse ended up with two houses, enter theirs here. Anything added here stays behind.</div>
-      <div class="addline"><input id="switch-code" placeholder="Invite code" style="text-transform:uppercase;letter-spacing:.15em"><button class="btn sm" onclick="A.switchHousehold()">Join</button></div>
+
+    <div class="card"><div class="sec-row"><h2 class="sec">Your data</h2></div>
+      <div class="kv"><div class="k">Export<small>Everything in this household as a file you keep.</small></div><button class="btn sm ghost" onclick="A.exportData()">Download</button></div>
+      <div class="kv"><div class="k">Join another household<small>If you and your spouse ended up with two.</small></div></div>
+      <div class="addline" style="margin-top:0"><input id="switch-code" placeholder="Invite code" style="text-transform:uppercase;letter-spacing:.15em"><button class="btn sm" onclick="A.switchHousehold()">Join</button></div>
+      <div class="kv" style="margin-top:8px"><div class="k">Delete my account<small>Removes your sign-in and your user record. If you're the last member, the household goes too.</small></div><button class="btn sm danger" onclick="A.deleteAccount()">Delete</button></div>
     </div>
-    <div class="hint" style="text-align:center;margin:20px 0">Vita Plena v5 · Cognitive Christian</div>`;
+
+    <div class="hint" style="text-align:center;margin:20px 0">Vita Plena v5 · Cognitive Christian · <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="mailto:support@cognitivechristian.com">Support</a></div>`;
 }
+const QUOTA_TRIAL=40;
 A.saveProfile=()=>{ const name=$("set-name").value.trim(), ini=$("set-initials").value.trim().toUpperCase(); if(!name||!ini)return toast("Name and initials, please"); updateDoc(doc(db,"households",S.hid),{["profiles."+S.user.uid]:{name,initials:ini}}); setDoc(doc(db,"users",S.user.uid),{hid:S.hid,name,initials:ini}); toast("Saved"); };
 A.saveHouse=()=>{ updateDoc(doc(db,"households",S.hid),{name:$("set-house").value.trim()||S.house.name}); toast("Saved"); };
 A.copyInvite=()=>{ navigator.clipboard?.writeText(S.house.code||"").then(()=>toast("Code copied")); };
@@ -81,6 +115,52 @@ A.toggleModule=(k,v)=>saveField("modules."+k,v);
 A.bellSet=(k,v)=>{ BELL.settings={[k]:v}; render(); };
 A.bellTest=()=>BELL.test();
 A.bellPerm=async()=>{ await BELL.requestPermission(); render(); };
+
+/* people */
+A.openPersonModal=id=>{
+  const p=id?people().find(x=>x.id===id):null;
+  openModal(`<h3>${p?"Edit person":"Add a person"}</h3>
+    <label class="f">Name</label><input id="m-pe-name" value="${p?esc(p.name):""}" placeholder="Anna">
+    <label class="f">Emoji</label><input id="m-pe-emoji" value="${p?esc(p.emoji||""):""}" placeholder="👧" maxlength="4">
+    <label class="f">Who</label><select id="m-pe-role">${[["child","Child"],["teen","Teen"],["adult","Adult"],["grandparent","Grandparent"],["pet","Pet"]].map(([v,l])=>`<option value="${v}" ${(p?.role||"child")===v?"selected":""}>${l}</option>`).join("")}</select>
+    <div class="actions">${p?`<button class="btn ghost" onclick="A.rmPerson('${id}')">Remove</button>`:`<button class="btn ghost" onclick="A.closeModal()">Cancel</button>`}<button class="btn" onclick="A.savePerson('${id||""}')">${p?"Save":"Add"}</button></div>`);
+};
+A.savePerson=id=>{
+  const name=$("m-pe-name").value.trim(); if(!name)return toast("Give them a name");
+  const obj={id:id||rid(),name,emoji:$("m-pe-emoji").value.trim()||"💛",role:$("m-pe-role").value};
+  const list=people();
+  saveKey("people",id?list.map(p=>p.id===id?obj:p):list.concat([obj])); closeModal();
+};
+A.rmPerson=id=>{ closeModal(); confirmModal("Remove this person? Their chores stay, unassigned.",()=>saveKey("people",people().filter(p=>p.id!==id))); };
+
+/* household lifecycle (server-side) */
+const adminCall=async(body,busyMsg)=>{ toast(busyMsg||"Working…"); try{ return await callFn("household-admin",body); }catch(e){ toast(e.error||"That didn't work"); throw e; } };
+A.regenCode=()=>confirmModal("Make a new invite code? The old one stops working.",async()=>{ const r=await adminCall({op:"regenerate_code"}); toast("New code: "+r.code); },{danger:false,yes:"New code"});
+A.transferOwner=(uid,name)=>confirmModal(`Make ${name} the owner? They'll control billing and the household.`,async()=>{ await adminCall({op:"transfer_owner",uid}); toast(name+" is now the owner"); },{danger:false,yes:"Transfer"});
+A.removeMember=(uid,name)=>confirmModal(`Remove ${name} from the household? Their tasks and events stay.`,async()=>{ await adminCall({op:"remove_member",uid}); toast(name+" removed"); });
+A.leaveHousehold=()=>confirmModal("Leave this household? You'll start fresh, and anything here stays with it.",async()=>{ await adminCall({op:"leave"}); location.reload(); });
+A.deleteHousehold=()=>confirmModal("Delete the whole household and everything in it, for every member? This cannot be undone.",async()=>{ await adminCall({op:"delete_household"}); location.reload(); },{yes:"Delete everything"});
+A.deleteAccount=()=>confirmModal("Delete your account? Your sign-in and user record are removed now. If you're the last member, the household and all its data go with it.",async()=>{ await adminCall({op:"delete_account"}); try{ await signOut(auth); }catch{ /* already gone */ } location.reload(); },{yes:"Delete my account"});
+
+/* feeds, briefing, export */
+A.getFeed=async()=>{
+  const out=$("feed-out"); out.innerHTML='<div class="hint">Getting your link…</div>';
+  try{ const r=await callFn("ics"); out.innerHTML=`<div class="hint" style="margin-top:8px">On iPhone, tap the link and choose Subscribe. On a Mac: Calendar → File → New Calendar Subscription.</div><div class="addline"><input value="${esc(r.webcal)}" readonly onclick="this.select()"><button class="btn sm" onclick="navigator.clipboard?.writeText('${esc(r.webcal)}').then(()=>A.toast('Copied'))">Copy</button></div><a class="link" href="${esc(r.webcal)}">Open in Calendar</a>`; }
+  catch(e){ out.innerHTML=`<div class="hint" style="color:var(--warn)">${esc(e.error||"Couldn't get the link")}</div>`; }
+};
+A.toast=toast;
+A.writeBriefing=async()=>{
+  const b=$("brief-btn"); if(b){ b.disabled=true; b.textContent="Writing…"; }
+  try{ const r=await callFn("briefing"); toast(r.emailed?"Written and emailed":"Written. It's on Today."); go("today"); }
+  catch(e){ toast(e.error||"Couldn't write the briefing"); }
+  finally{ if(b){ b.disabled=false; b.textContent="Write this week's briefing"; } }
+};
+A.exportData=()=>{
+  const data={exportedAt:new Date().toISOString(),household:{id:S.hid,...S.house},state:S.state,items:S.items,briefing:S.briefing};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="vita-plena-"+ymd(new Date())+".json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000); toast("Exported");
+};
 A.switchHousehold=async()=>{
   const code=$("switch-code").value.trim().toUpperCase(); if(!code)return toast("Enter the invite code");
   confirmModal("Join that household? You'll leave this one.",async()=>{

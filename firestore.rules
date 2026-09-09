@@ -70,14 +70,15 @@ service cloud.firestore {
         && request.resource.data.members == [request.auth.uid]
         && request.resource.data.profiles.keys().hasOnly([request.auth.uid]);
 
-      /* Members may edit household fields (name, countdown, profiles, people) but never
-         the roster and never the subscription — entitlements are written by the Stripe /
+      /* Members may edit household fields (name, countdown, profiles) but never the
+         roster, never the owner (transfers go through the household-admin function),
+         and never the subscription — entitlements are written by the Stripe /
          RevenueCat webhooks via the Admin SDK only (Phase 5). A client that can write
          `subscription` can grant itself a paid plan. */
       allow update: if signedIn()
         && request.auth.uid in resource.data.members
         && request.resource.data.members == resource.data.members
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription']);
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription', 'owner', 'code']);
 
       // Joining: a non-member may add ONLY themselves to members, and ONLY their own profile.
       allow update: if signedIn()

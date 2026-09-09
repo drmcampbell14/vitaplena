@@ -17,6 +17,8 @@ export const GOOGLE_CLIENT_ID = "321629125374-jqeuba99c0gm7qb4ja9q47pmkc5j8674.a
    Everything is re-exported here so consumers keep importing from data.js. */
 import { todayS, esc, rid, toast } from "./util.js";
 import { season } from "./liturgical.js";
+import { S, bus, profOf } from "./state.js";
+export * from "./state.js";
 export * from "./util.js";
 export * from "./liturgical.js";
 export * from "./recurrence.js";
@@ -46,12 +48,6 @@ export const VIRTUES=["Faith","Hope","Charity","Prudence","Justice","Fortitude",
 
 /* ---------------- tiny utils ---------------- */
 
-/* ---------------- app state + render bus ---------------- */
-export const S={user:null,profile:null,hid:null,house:null,state:{},items:[],selDate:todayS(),calCursor:new Date(),mealDay:(new Date().getDay()+6)%7,calFilter:"all",faithTab:"rhythm",shareRefl:false,ci:{scale:0,pray:null,date:null},sdIdx:null,gcalToken:null,gcalConnected:false,unsubs:[]};
-window.S=S;
-/* views register their render functions on the bus; app.js drives it */
-export const bus={render:()=>{}};
-
 /* ---------------- firebase ---------------- */
 export const app=initializeApp(FIREBASE_CONFIG);
 export const auth=getAuth(app);
@@ -78,11 +74,6 @@ export function updItem(id,data){ if(S.demo){ S.items=S.items.map(i=>i.id===id?{
 export function delItem(id){ if(S.demo){ S.items=S.items.filter(i=>i.id!==id); bus.render(); return Promise.resolve(); } return deleteDoc(doc(db,"households",S.hid,"items",id)).catch(e=>toast(e.message)); }
 window.delItem=delItem;window.updItem=updItem;
 
-export const partnerUid=()=>(S.house?.members||[]).find(m=>m!==S.user.uid);
-export const partnerName=()=>{const u=partnerUid();return u?profOf(u).name:"your spouse";};
-export const profOf=u=>S.house?.profiles?.[u]||{name:"—",initials:"·"};
-export const isMine=it=>it.owner===S.user.uid;
-export const tagCls=it=>isMine(it)?"":"p2";
 
 /* ---------------- recurrence engine ---------------- */
 export function doneSet(dateS){return new Set(((S.state.rhythmDone||{})[dateS]||{})[S.user.uid]||[]);}

@@ -8,6 +8,7 @@ import { syncGcal } from "../lib/gcal.js";
 import { doc, updateDoc } from "firebase/firestore";
 import { $, A, ICON, openSheet, toast, haptic } from "../ui/dom.js";
 import { renderAll } from "../app/shell.js";
+import { who, assigneeOn, people, resolveName } from "../core/people.js";
 
 export const BEACON_NAME="Beacon";
 const ENDPOINT="/.netlify/functions/companion";
@@ -22,11 +23,12 @@ function snapshot(){
     prettyDate:now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),
     liturgicalDay:S.liturgy?.day||"",
     me:S.profile?.name||"", spouse:partnerName(),
-    people:(S.state.famSections||[]).map(f=>f.name),
+    people:people().map(p=>p.name+(p.role?" ("+p.role+")":"")),
+    choresThisWeek:S.items.filter(i=>i.kind==="task"&&Array.isArray(i.rotate)&&i.rotate.length>1).map(t=>({text:t.text,thisWeek:who(assigneeOn(t,todayStr)).name})),
     practices:(S.state.practices||[]).map(p=>({name:p.name,time:p.time,mins:p.mins,days:p.days})),
     todaysEvents:S.items.filter(i=>i.kind==="event"&&i.date===todayStr).map(e=>({title:e.title,time:e.time,endTime:e.endTime||"",owner:e.ownerName||""})),
     upcomingEvents:S.items.filter(i=>i.kind==="event"&&i.date>todayStr&&i.date<=weekEnd).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(e=>({title:e.title,date:e.date,time:e.time,endTime:e.endTime||"",owner:e.ownerName||""})),
-    openTasks:S.items.filter(i=>i.kind==="task"&&!i.done&&(i.area===S.user.uid||i.area==="together")).slice(0,25).map(t=>({text:t.text,assignee:areaName(t.area),due:t.due||"",repeating:!!t.repeat})),
+    openTasks:S.items.filter(i=>i.kind==="task"&&!i.done).slice(0,30).map(t=>({text:t.text,assignee:who(assigneeOn(t,todayStr)).name.toLowerCase(),due:t.due||"",repeating:!!t.repeat})),
     confessionCadence:((S.state.confession||{})[S.user.uid]||{}).cadence||14,
     lastConfession:(()=>{const c=(S.state.confession||{})[S.user.uid]||{};const l=(c.log&&c.log.length?c.log:(c.last?[c.last]:[])).slice().sort();return l[l.length-1]||"";})(),
     focus:(S.state.focus||[]).filter(f=>!f.done).map(f=>f.text),
@@ -85,13 +87,7 @@ function renderSheetLog(){
 }
 
 /* ---------------- the executor ---------------- */
-function resolveArea(assignee){
-  const a=(assignee||"").toLowerCase().trim();
-  if(!a||a==="me")return S.user.uid;
-  if(a==="both"||a==="together"||a==="us")return "together";
-  const hit=(S.house?.members||[]).find(u=>{const n=(profOf(u).name||"").toLowerCase();return n===a||n.startsWith(a);});
-  return hit||S.user.uid;
-}
+function resolveArea(assignee){ return resolveName(assignee)||S.user.uid; }
 function findTask(text){
   const q=(text||"").toLowerCase().trim(); if(!q)return null;
   const open=S.items.filter(i=>i.kind==="task");
@@ -114,7 +110,7 @@ function apply(actions){
         addItem({kind:"event",title:a.title||"Event",date:a.date||todayS(),time:a.time||"",endTime:a.endTime||"",area:a.tier==="family"?"together":S.user.uid,tier:a.tier||"",source:"manual"});
         chips.push({label:"✓ Event · "+(a.title||"")+(a.time?" · "+fmtT(a.time):"")});
       } else if(a.op==="create_task"){
-        const area=resolveArea(a.assignee||a.area); const realArea=(area==="together"||S.house?.members?.includes(area))?area:S.user.uid;
+        const realArea=resolveArea(a.assignee||a.area);
         const sec=ensureSection(realArea,a.area&&a.area!==a.assignee?a.area:"");
         addItem({kind:"task",text:a.text||"Task",area:realArea,sectionId:sec.id,due:a.date||a.due||"",repeat:a.repeat||null,doneDates:{},done:false,tier:a.tier||""});
         chips.push({label:"✓ Task · "+(a.text||"")});
