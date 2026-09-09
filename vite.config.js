@@ -5,6 +5,11 @@ import { defineConfig } from "vite";
    `index.html` at the repo root is the entry; everything it references lives in `src/`.
    Netlify runs `npm run build` and publishes `dist/` (see netlify.toml). */
 export default defineConfig({
+  // A build stamp the app can show, so "am I looking at the new version?" is
+  // answerable at a glance instead of by guessing at URLs and caches.
+  define: {
+    __BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC")
+  },
   build: {
     outDir: "dist",
     sourcemap: true,

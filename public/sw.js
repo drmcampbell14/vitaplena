@@ -4,7 +4,9 @@
    Google, Universalis, the companion function) goes straight to the network and
    is never cached here. Firestore has its own offline cache in the app. */
 
-const VERSION = "vp-shell-v1";
+/* Bumped on every release. A new name means every old cache is deleted on activate,
+   so a device can never be stuck serving a previous build's shell. */
+const VERSION = "vp-shell-v3";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

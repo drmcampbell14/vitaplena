@@ -10,6 +10,10 @@ import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet,
 import { registerScreen, go, renderAll } from "../app/shell.js";
 import { BELL } from "../core/bells.js";
 
+/** Build stamp, injected by Vite (see vite.config.js). "dev" when running `npm run dev`. */
+export const BUILD = (typeof __BUILD__ !== "undefined") ? __BUILD__ : "dev";
+export const VERSION = "5.0";
+
 S.moreKind=S.moreKind||"settings";
 const MODULES=[["meals","Meals & groceries","🍞"],["finance","Finances & tithing","🕊️"],["family","Family & pets","🐾"],["notes","Notes","📝"]];
 const modOn=k=>{ const m=S.state.modules; return m?!!m[k]:false; };
@@ -20,6 +24,7 @@ A.openMenu=()=>{
     ...MODULES.filter(([k])=>modOn(k)).map(([k,l])=>[k,l,""]),
   ];
   openSheet(`<div class="reader menu-list" style="padding-bottom:20px"><div class="r-title" style="font-size:28px">${esc(S.house?.name||"Household")}</div>
+    <div class="hint" style="margin-top:2px">Vita Plena v${VERSION} · built ${esc(BUILD)}</div>
     <div style="margin-top:10px">${rows.map(([k,l,s])=>`<div class="row" style="cursor:pointer" onclick="A.openMore('${k}')"><div class="grow"><div class="title">${esc(l)}</div>${s?`<div class="sub">${esc(s)}</div>`:""}</div>${ICON.chevron.replace('<svg','<svg style="width:18px;height:18px;color:var(--faint)"')}</div>`).join("")}
     <div class="row" style="cursor:pointer" onclick="A.openFamilyMode()"><div class="grow"><div class="title">Family mode</div><div class="sub">Big type for the tablet on the counter</div></div></div>
     <div class="row" style="cursor:pointer" onclick="A.rerunOnboarding()"><div class="grow"><div class="title">Set up my rule again</div><div class="sub">Prayers, hours, the bells</div></div></div>
@@ -105,7 +110,13 @@ function settings(){
       <div class="kv" style="margin-top:8px"><div class="k">Delete my account<small>Removes your sign-in and your user record. If you're the last member, the household goes too.</small></div><button class="btn sm danger" onclick="A.deleteAccount()">Delete</button></div>
     </div>
 
-    <div class="hint" style="text-align:center;margin:20px 0">Vita Plena v5 · Cognitive Christian · <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="mailto:support@cognitivechristian.com">Support</a></div>`;
+    <div class="card"><div class="sec-row"><h2 class="sec">This app</h2></div>
+      <div class="kv"><div class="k">Version<small>If you can read this line at all, you are on v5. The old app has no version here.</small></div><div class="num" style="font-weight:600">v${VERSION}</div></div>
+      <div class="kv"><div class="k">Built<small>When this copy was compiled</small></div><div class="num">${esc(BUILD)}</div></div>
+      <div class="kv"><div class="k">Address<small>The site you have open right now</small></div><div class="hint" style="text-align:right;word-break:break-all;max-width:60%">${esc(location.host)}</div></div>
+      <div class="actions"><button class="btn ghost" onclick="A.hardRefresh()">Force a fresh copy</button></div>
+    </div>
+    <div class="hint" style="text-align:center;margin:20px 0">Cognitive Christian · <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="mailto:support@cognitivechristian.com">Support</a></div>`;
 }
 const QUOTA_TRIAL=40;
 A.saveProfile=()=>{ const name=$("set-name").value.trim(), ini=$("set-initials").value.trim().toUpperCase(); if(!name||!ini)return toast("Name and initials, please"); updateDoc(doc(db,"households",S.hid),{["profiles."+S.user.uid]:{name,initials:ini}}); setDoc(doc(db,"users",S.user.uid),{hid:S.hid,name,initials:ini}); toast("Saved"); };
@@ -114,6 +125,14 @@ A.copyInvite=()=>{ navigator.clipboard?.writeText(S.house.code||"").then(()=>toa
 A.toggleModule=(k,v)=>saveField("modules."+k,v);
 A.bellSet=(k,v)=>{ BELL.settings={[k]:v}; render(); };
 A.bellTest=()=>BELL.test();
+/** Clears the offline cache and the service worker, then reloads. The escape hatch
+    when a device is holding an old copy of the app. */
+A.hardRefresh=async()=>{
+  toast("Clearing the offline copy…");
+  try{ if("caches" in window){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch{ /* ignore */ }
+  try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); } }catch{ /* ignore */ }
+  location.reload(true);
+};
 A.bellPerm=async()=>{ await BELL.requestPermission(); render(); };
 
 /* people */
