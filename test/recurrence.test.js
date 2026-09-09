@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { taskOccursOn, taskDoneOn, scheduledToday, repeatLabel } from "../src/core/recurrence.js";
+import { taskOccursOn, taskDoneOn, eventDoneOn, itemDoneOn, scheduledToday, repeatLabel } from "../src/core/recurrence.js";
 
 /* Calendar facts used below: 2026-09-01 is a Tuesday, 2026-09-06 is a Sunday. */
 
@@ -76,5 +76,27 @@ describe("repeatLabel()", () => {
     expect(repeatLabel(task({ repeat: { type: "monthly", dom: 3 } }))).toBe("↻ the 3rd of each month");
     expect(repeatLabel(task({ repeat: { type: "every", n: 4 } }))).toBe("↻ every 4 days");
     expect(repeatLabel(task({}))).toBe("");
+  });
+});
+
+describe("eventDoneOn() / itemDoneOn()", () => {
+  /* Events are crossed off once for the household — not per person like a practice,
+     and not per date like a repeating task. */
+  it("an event is done when it says it is", () => {
+    expect(eventDoneOn({ kind: "event", title: "Dinner" })).toBe(false);
+    expect(eventDoneOn({ kind: "event", title: "Dinner", done: true })).toBe(true);
+  });
+
+  it("a done event stays done on every date, unlike a repeating task", () => {
+    const e = { kind: "event", date: "2026-09-01", done: true };
+    expect(itemDoneOn(e, "2026-09-01")).toBe(true);
+    expect(itemDoneOn(e, "2026-09-02")).toBe(true);
+  });
+
+  it("itemDoneOn sends tasks down the task path", () => {
+    const r = task({ repeat: { type: "weekly", days: [2] }, doneDates: { "2026-09-01": true } });
+    expect(itemDoneOn(r, "2026-09-01")).toBe(true);
+    expect(itemDoneOn(r, "2026-09-08")).toBe(false);
+    expect(itemDoneOn(task({ due: "2026-09-01", done: true }), "2026-09-01")).toBe(true);
   });
 });

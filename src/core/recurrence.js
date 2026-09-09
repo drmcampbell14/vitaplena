@@ -24,6 +24,15 @@ export function taskOccursOn(t,dateS){
 }
 export function taskDoneOn(t,dateS){return t.repeat?!!((t.doneDates||{})[dateS]):!!t.done;}
 
+/* Events are done once, for the household — an event either happened or it did not,
+   so there is nothing to record per person and nothing to record per date. Google
+   Calendar events are stored the same way; the sync writes named fields only, so a
+   `done` mark set here survives the next pull. */
+export function eventDoneOn(e){ return !!e.done; }
+
+/** Is this item crossed off on this date, whatever kind it is. */
+export function itemDoneOn(i,dateS){ return i.kind==="event"?eventDoneOn(i):taskDoneOn(i,dateS); }
+
 export function repeatLabel(t){
   if(!t.repeat)return t.due?("Due "+new Date(t.due+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})):"";
   if(t.repeat.type==="weekly"){ const ds=t.repeat.days||[]; if(ds.length===7)return "↻ daily"; return "↻ "+[1,2,3,4,5,6,0].filter(d=>ds.includes(d)).map(d=>DOWS[d]).join(" · "); }

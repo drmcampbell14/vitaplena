@@ -1,7 +1,7 @@
 /* Vita Plena — Calendar: month grid, the selected day's events and tasks,
    quick add, Google Calendar connect. Events carry a source badge (G for Google). */
 import { S, esc, fmtT, todayS, ymd, addD, SAINTS, DOWS, addItem, updItem, delItem,
-  taskOccursOn, taskDoneOn, repeatLabel, profOf, tagCls, feastKey, liturgicalColor } from "../core/data.js";
+  taskOccursOn, taskDoneOn, eventDoneOn, repeatLabel, profOf, tagCls, feastKey, liturgicalColor } from "../core/data.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, toast } from "../ui/dom.js";
 import { registerScreen } from "../app/shell.js";
 import { who, assigneeOn } from "../core/people.js";
@@ -45,7 +45,7 @@ function render(){
     </div>
     <div class="card">
       <div class="sec-row"><h2 class="sec">${S.selDate===todayS()?"Today":sd.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}</h2><span class="dayfeast">${saint?"✝ "+esc(saint):c.name}</span></div>
-      ${evs.map(e=>`<div class="row" onclick="A.openEventModal('${e.id}')" style="cursor:pointer"><div class="ev-time">${e.time?fmtT(e.time):"All day"}</div><div class="ev-dot ${tagCls(e)}"></div><div class="grow"><div class="title">${esc(e.title)}</div>${e.location?`<div class="sub">${esc(e.location)}</div>`:""}</div><span class="owner-tag ${tagCls(e)}">${e.source==="gcal"?"G":esc(e.ownerInitials||"")}</span></div>`).join("")||'<div class="empty">No events.</div>'}
+      ${evs.map(e=>`<div class="row ${eventDoneOn(e)?"done":""}" onclick="A.openEventModal('${e.id}')" style="cursor:pointer"><button class="chk ${eventDoneOn(e)?"on":""}" onclick="event.stopPropagation();A.toggleEvent('${e.id}')" aria-label="${eventDoneOn(e)?"Done":"Mark done"}">${ICON.check}</button><div class="ev-time">${e.time?fmtT(e.time):"All day"}</div><div class="ev-dot ${tagCls(e)}"></div><div class="grow"><div class="title ${eventDoneOn(e)?"done-text":""}">${esc(e.title)}</div>${e.location?`<div class="sub">${esc(e.location)}</div>`:""}</div><span class="owner-tag ${tagCls(e)}">${e.source==="gcal"?"G":esc(e.ownerInitials||"")}</span></div>`).join("")||'<div class="empty">No events.</div>'}
       <div class="addline"><input id="ev-in" placeholder="Add… 6:30pm Dinner with the Smiths" onkeydown="if(event.key==='Enter')A.quickAddEvent()"><button class="iconbtn" onclick="A.quickAddEvent()">${ICON.plus}</button></div>
       <button class="link" style="margin-top:10px" onclick="A.openEventModal()">More options</button>
     </div>
@@ -68,6 +68,11 @@ A.quickAddEvent=()=>{
   addItem({kind:"event",title:v||"Event",date:S.selDate,time,source:"manual",area:"together"});
   toast("Added");
 };
+/* Crossing an event off is household-wide and undoable: an event happened or it
+   didn't, so there is nothing to track per person or per date. Lives here with the
+   other event actions; Today calls it through the A registry the same way it calls
+   A.openEventModal. */
+A.toggleEvent=id=>{ const e=S.items.find(i=>i.id===id); if(e)updItem(id,{done:!e.done}); };
 A.openEventModal=id=>{
   const e=id?S.items.find(i=>i.id===id):null;
   if(e&&e.source==="gcal")return toast("That one comes from Google Calendar. Edit it there.");

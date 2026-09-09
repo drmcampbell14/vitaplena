@@ -3,7 +3,7 @@
    kept ring → focus and countdowns. A Me / Household switch filters the agenda:
    Me is my practices, my tasks and events; Household is everyone's, with who has
    kept what. */
-import { S, esc, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, repeatLabel,
+import { S, esc, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, eventDoneOn, repeatLabel,
   doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
@@ -20,7 +20,7 @@ export function todayTimeline(view=S.view){
   const mineTask=t=>mineOn(t,date);
   const items=[];
   (S.state.practices||[]).filter(p=>scheduledToday(p)).forEach(p=>items.push({t:p.time||"23:58",kind:"practice",p,done:dn.has(p.id)}));
-  S.items.filter(i=>i.kind==="event"&&i.date===date&&(view==="house"||mineEv(i))).forEach(e=>items.push({t:e.time||"00:00",kind:"event",e}));
+  S.items.filter(i=>i.kind==="event"&&i.date===date&&(view==="house"||mineEv(i))).forEach(e=>items.push({t:e.time||"00:00",kind:"event",e,done:eventDoneOn(e)}));
   S.items.filter(i=>i.kind==="task"&&taskOccursOn(i,date)&&(view==="house"||mineTask(i))).forEach(tk=>{
     const w=tk.whenHint; const t=w&&w.includes(":")?w:w==="morning"?"08:30":w==="afternoon"?"13:00":w==="evening"?"18:30":"23:59";
     items.push({t,kind:"task",tk,done:taskDoneOn(tk,date)});
@@ -122,24 +122,28 @@ function row(x,isNow){
     const keptBy=(S.house.members||[]).filter(u=>(((S.state.rhythmDone||{})[date]||{})[u]||[]).includes(p.id));
     const avs=S.view==="house"&&keptBy.length?`<span class="kept">${keptBy.map(u=>`<span class="av sm ${u===S.user.uid?"me":""}">${esc(profOf(u).initials)}</span>`).join("")}</span>`:"";
     return `<div class="tl-row ${x.done?"done":""} ${isNow?"now":""}">
+      <button class="chk ${x.done?"on":""}" onclick="A.togglePractice('${p.id}')" aria-label="${x.done?"Kept":"Mark kept"}">${ICON.check}</button>
       <div class="tl-time"><b>${fmtT(p.time).replace(/ (AM|PM)/,"")}</b>${fmtT(p.time).slice(-2)}</div>
       <div class="tl-ico pr">${p.emoji||"🙏"}</div>
       <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(p.name)}</div><div class="kind">${p.mins} min${pr?` · <button class="link" style="font-size:12.5px" onclick="A.openPrayer('${esc(p.name)}')">pray →</button>`:""}${avs}</div></div>
-      <button class="donebtn ${x.done?"on":""}" onclick="A.togglePractice('${p.id}')">${x.done?"Kept":"Done"}</button>
     </div>`;
   }
   if(x.kind==="event"){
     const e=x.e;
-    return `<div class="tl-row ${isNow?"now":""}" onclick="A.openEventModal('${e.id}')">
+    /* the checkbox must not also open the editor the row is wired to */
+    return `<div class="tl-row ${x.done?"done":""} ${isNow?"now":""}" onclick="A.openEventModal('${e.id}')">
+      <button class="chk ${x.done?"on":""}" onclick="event.stopPropagation();A.toggleEvent('${e.id}')" aria-label="${x.done?"Done":"Mark done"}">${ICON.check}</button>
       <div class="tl-time"><b>${e.time?fmtT(e.time).replace(/ (AM|PM)/,""):"—"}</b>${e.time?fmtT(e.time).slice(-2):"all day"}</div>
       <div class="tl-ico ev">${e.protected?"🛡":e.source==="gcal"?"G":"📅"}</div>
-      <div class="grow"><div class="title">${esc(e.title)}</div><div class="kind">${e.location?esc(e.location):e.protected?"Protected time":"Event"}${e.endTime?" · until "+fmtT(e.endTime):""}</div></div>
+      <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(e.title)}</div><div class="kind">${e.location?esc(e.location):e.protected?"Protected time":"Event"}${e.endTime?" · until "+fmtT(e.endTime):""}</div></div>
       <span class="owner-tag ${tagCls(e)}">${esc(e.ownerInitials||"")}</span>
     </div>`;
   }
   const t=x.tk;
   return `<div class="tl-row ${x.done?"done":""}">
-    <button class="chk ${x.done?"on":""}" onclick="A.toggleTaskOn('${t.id}','${date}')">${ICON.check}</button>
+    <button class="chk ${x.done?"on":""}" onclick="A.toggleTaskOn('${t.id}','${date}')" aria-label="${x.done?"Done":"Mark done"}">${ICON.check}</button>
+    <div class="tl-time"></div>
+    <div class="tl-ico task"></div>
     <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(t.text)}</div><div class="kind">${(w=>w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date)))}${t.rotate?.length>1?" · rotates":""}${repeatLabel(t)?" · "+repeatLabel(t):""}</div></div>
     <button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button>
   </div>`;
