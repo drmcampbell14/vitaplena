@@ -35,6 +35,11 @@ function render(){
   const tl=todayTimeline();
   const hhmm=nowHHMM();
 
+  /* how much of my own rule is kept today — read in the greeting and the ring */
+  const mine=todayTimeline("me").filter(x=>x.kind!=="event"&&!(x.kind==="task"&&assigneeOn(x.tk,date)!==me&&assigneeOn(x.tk,date)!=="together"));
+  const kept=mine.filter(x=>x.done).length, total=mine.length;
+  const off=total?Math.round(163*(1-kept/total)):163;
+
   /* alerts */
   const alerts=[];
   const overdue=S.items.filter(i=>i.kind==="task"&&!i.repeat&&!i.done&&i.due&&i.due<date&&mineOn(i,date)).length;
@@ -48,7 +53,7 @@ function render(){
 
   /* next */
   const next=tl.find(x=>!x.done&&x.t>=hhmm&&x.kind!=="task");
-  const nextHtml=next?nextCard(next):(tl.length?`<div class="card tint"><div class="eyebrow lit">The day</div><div class="disp" style="font-size:22px;margin-top:4px">${tl.every(x=>x.done||x.kind==="event")?"The rhythm is kept today. Deo gratias.":"Nothing more is scheduled. A quiet evening."}</div></div>`:`<div class="card tint"><div class="eyebrow lit">Your rule</div><div class="disp" style="font-size:22px;margin-top:4px">No practices yet. Set up your rule from the menu.</div></div>`);
+  const nextHtml=next?nextCard(next):(tl.length?`<div class="card tint"><div class="eyebrow">The day</div><div class="disp" style="font-size:22px;margin-top:4px">${tl.every(x=>x.done||x.kind==="event")?"The rhythm is kept today. Deo gratias.":"Nothing more is scheduled. A quiet evening."}</div></div>`:`<div class="card tint"><div class="eyebrow">Your rule</div><div class="disp" style="font-size:22px;margin-top:4px">No practices yet. Set up your rule from the menu.</div></div>`);
 
   /* groups */
   const groups=[["Morning",x=>hourOf(x.t)<11],["The Day",x=>hourOf(x.t)>=11&&hourOf(x.t)<17],["Evening",x=>hourOf(x.t)>=17]];
@@ -58,11 +63,6 @@ function render(){
     return `<div class="tl-group"><div class="tl-head"><div class="t">${label}</div><div class="n">${rows.length}</div></div><div class="tl">${rows.map(x=>row(x,x===firstNow)).join("")}</div></div>`;
   }).join("")||`<div class="card"><div class="empty">Nothing scheduled. A quiet day, Deo gratias.</div></div>`;
 
-  /* ring: my practices + my tasks */
-  const mine=todayTimeline("me").filter(x=>x.kind!=="event"&&!(x.kind==="task"&&assigneeOn(x.tk,date)!==me&&assigneeOn(x.tk,date)!=="together"));
-  const kept=mine.filter(x=>x.done).length, total=mine.length;
-  const off=total?Math.round(163*(1-kept/total)):163;
-
   /* focus + countdowns */
   const focus=(S.state.focus||[]);
   const cds=(S.state.countdowns||[]).concat(S.house.countdown&&S.house.countdown.date?[{id:"house",label:S.house.countdown.label||"Goal",date:S.house.countdown.date}]:[]).filter(c=>c.date).sort((a,b)=>a.date.localeCompare(b.date));
@@ -70,31 +70,34 @@ function render(){
   $("page-today").innerHTML=`
     <div class="greet">
       <div class="g1">${h<12?"Good morning":h<17?"Good afternoon":"Good evening"}, ${esc(S.profile?.name||"friend")}.</div>
-      <div class="g2 verse-line">“${esc(q[0])}” <span class="muted" style="font-style:normal;font-family:var(--sans);font-size:13px">— ${esc(q[1])}</span></div>
+      <div class="g2">${total?`${kept} of ${total} kept so far.`:"Nothing set for today yet."}</div>
     </div>
-    ${alerts.length?`<div class="alerts">${alerts.join("")}</div>`:""}
     <div class="capture">
       <input id="cap-in" placeholder="Tell Beacon: rosary at 8, vacuum Tuesdays, Liz…" onkeydown="if(event.key==='Enter')A.captureSend()" autocomplete="off">
       <button class="iconbtn ghost" id="cap-mic" onclick="A.beaconMic('cap-in','cap-mic')" aria-label="Speak">${ICON.mic}</button>
       <button class="iconbtn lit" onclick="A.captureSend()" aria-label="Send">${ICON.send}</button>
     </div>
     ${S.lastBeacon?`<div class="beacon-reply"><div class="who">Beacon</div>${esc(S.lastBeacon.say)}${S.lastBeacon.chips?.length?`<div class="chips">${S.lastBeacon.chips.map(c=>`<span class="chip ${c.terra?"warn":"lit"}">${esc(c.label)}</span>`).join("")}</div>`:""}</div>`:""}
-    <div class="seg" style="margin-bottom:14px"><button class="${S.view==="me"?"on":""}" onclick="A.setView('me')">Me</button><button class="${S.view==="house"?"on":""}" onclick="A.setView('house')">Household</button></div>
+    ${alerts.length?`<div class="alerts">${alerts.join("")}</div>`:""}
     ${nextHtml}
-    ${S.briefing?`<div class="card tint"><div class="eyebrow lit">The week ahead · ${new Date(S.briefing.weekOf+"T12:00").toLocaleDateString(undefined,{month:"long",day:"numeric"})}</div><div class="brief">${esc(S.briefing.text)}</div></div>`:""}
+    <div class="day-bar">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle class="bg" cx="30" cy="30" r="26"/><circle class="fg" cx="30" cy="30" r="26" stroke-dasharray="163" stroke-dashoffset="${off}"/></svg>
+        <div><div class="ring-lbl">${kept} of ${total} kept</div><div class="ring-sub">${total&&kept===total?"The whole rule, today.":kept?"Underway.":"Begin when you're ready."}</div></div>
+      </div>
+      <div class="seg"><button class="${S.view==="me"?"on":""}" onclick="A.setView('me')">Me</button><button class="${S.view==="house"?"on":""}" onclick="A.setView('house')">Household</button></div>
+    </div>
     ${tlHtml}
-    <div class="card" style="margin-top:18px"><div class="ring-wrap">
-      <svg class="ring" viewBox="0 0 60 60"><circle class="bg" cx="30" cy="30" r="26"/><circle class="fg" cx="30" cy="30" r="26" stroke-dasharray="163" stroke-dashoffset="${off}"/></svg>
-      <div><div class="ring-lbl">${kept} of ${total} kept</div><div class="ring-sub">${total&&kept===total?"The whole rule, today. Deo gratias.":kept?"Underway.":"Begin whenever you're ready."}</div></div>
-    </div></div>
-    <div class="two">
+    ${S.briefing?`<div class="card tint" style="margin-top:18px"><div class="eyebrow">The week ahead · ${new Date(S.briefing.weekOf+"T12:00").toLocaleDateString(undefined,{month:"long",day:"numeric"})}</div><div class="brief">${esc(S.briefing.text)}</div></div>`:""}
+    <div class="two" style="margin-top:18px">
       <div class="card"><div class="sec-row"><div class="sec-sm">This week</div><button class="editp" onclick="A.addFocusModal()">${ICON.plus}</button></div>
         ${focus.map(f=>`<div class="row"><button class="chk ${f.done?"on":""}" onclick="A.toggleFocus('${f.id}')">${ICON.check}</button><div class="grow title ${f.done?"done-text":""}" style="font-size:15px">${esc(f.text)}</div><button class="x" onclick="A.rmFocus('${f.id}')">×</button></div>`).join("")||'<div class="empty">One focus for the week.</div>'}
       </div>
       <div class="card"><div class="sec-row"><div class="sec-sm">Counting toward</div><button class="editp" onclick="A.openCountdownModal()">${ICON.plus}</button></div>
-        ${cds.map(c=>{const d=Math.ceil((new Date(c.date+"T12:00")-now)/864e5);return `<div class="row"><div class="grow"><div class="title" style="font-size:15px">${esc(c.label)}</div><div class="sub">${new Date(c.date+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div></div><div class="disp" style="font-size:24px;color:var(--lit-deep)">${d>=0?d+"d":"past"}</div></div>`;}).join("")||'<div class="empty">A feast, a trip, a due date.</div>'}
+        ${cds.map(c=>{const d=Math.ceil((new Date(c.date+"T12:00")-now)/864e5);return `<div class="row"><div class="grow"><div class="title" style="font-size:15px">${esc(c.label)}</div><div class="sub">${new Date(c.date+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div></div><div class="disp num" style="font-size:24px">${d>=0?d+"d":"past"}</div></div>`;}).join("")||'<div class="empty">A feast, a trip, a due date.</div>'}
       </div>
-    </div>`;
+    </div>
+    <div class="verse-foot">“${esc(q[0])}”<cite>${esc(q[1])}</cite></div>`;
 }
 
 function nextCard(x){

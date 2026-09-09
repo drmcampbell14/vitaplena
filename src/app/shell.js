@@ -1,7 +1,7 @@
 /* Vita Plena — app shell: liturgical colour, header, tab bar, page routing, render bus.
    Screens register a render function by tab id; renderAll() redraws every screen
    from the current state, which is cheap at this size and keeps things simple. */
-import { S, bus, esc, profOf, season, liturgicalColor, feastKey, SAINTS, fastAbstinence } from "../core/data.js";
+import { S, bus, esc, season, liturgicalColor, feastKey, SAINTS, fastAbstinence } from "../core/data.js";
 import { $, A, ICON } from "../ui/dom.js";
 
 export const TABS=[
@@ -36,28 +36,33 @@ export function applyLiturgy(d=new Date()){
   return c;
 }
 
+/** Universalis writes "St Peter Claver", our table writes "St. Peter Claver".
+    Compare loosely so the same saint is never printed twice on one line. */
+const loose=t=>String(t||"").toLowerCase().replace(/[^a-z]/g,"");
+export function namesTheSame(haystack,name){ return loose(haystack).includes(loose(name)); }
+
 /** The liturgical line under the date: Universalis' day title when loaded, else season + saint. */
 export function liturgyLine(d=new Date()){
   const uni=S.liturgy?.day;
   const saint=SAINTS[feastKey(d)];
   const s=season(d).name;
-  if(uni)return {main:uni,sub:saint&&!uni.includes(saint)?saint:""};
+  if(uni)return {main:uni,sub:saint&&!namesTheSame(uni,saint)?saint:""};
   return {main:s,sub:saint||""};
 }
 
 export function renderHeader(){
   const now=new Date();
-  const c=applyLiturgy(now);
+  applyLiturgy(now);   // sets the accent tokens and the browser chrome colour
   const line=liturgyLine(now);
   const fa=fastAbstinence(now);
-  const members=S.house?.members||[];
-  const avs=members.map(u=>{const p=profOf(u);return `<div class="av ${u===S.user.uid?"me":""}" title="${esc(p.name)}">${esc(p.initials)}</div>`;}).join("");
+  /* Two lines and two buttons, and nothing else. The member avatars used to live
+     here and collided with the date on a phone-width screen; who is in the
+     household belongs on Us, not in the chrome of every screen. */
   $("hdr").innerHTML=`
     <div class="grow">
       <div class="hdr-date">${now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}</div>
-      <div class="hdr-lit"><b>${esc(line.main)}</b>${line.sub?" · "+esc(line.sub):""}${fa?" · "+esc(fa.label):""} · ${c.name}</div>
+      <div class="hdr-lit"><b>${esc(line.main)}</b>${line.sub?" · "+esc(line.sub):""}${fa?" · "+esc(fa.label):""}</div>
     </div>
-    <div class="avatars">${avs}</div>
     <button class="iconbtn lit" onclick="A.openBeacon()" aria-label="Beacon">${ICON.beacon}</button>
     <button class="iconbtn" onclick="A.openMenu()" aria-label="Menu">${ICON.menu}</button>`;
 }

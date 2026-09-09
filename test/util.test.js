@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { todayS, fmtT, fmtMins, ordinal, esc, money, uid6, rid, DOWS } from "../src/core/util.js";
+import { todayS, fmtT, fmtMins, ordinal, esc, money, uid6, rid, DOWS, unentity, plain } from "../src/core/util.js";
 
 /* These helpers are tiny, but util.js is imported by nearly everything, so a broken
    import here takes the whole app down at load. todayS() in particular crosses into
@@ -48,5 +48,28 @@ describe("util", () => {
   it("DOWS starts on Sunday", () => {
     expect(DOWS[0]).toBe("Su");
     expect(DOWS).toHaveLength(7);
+  });
+});
+
+describe("outside text", () => {
+  it("unentity decodes named, decimal and hex entities", () => {
+    expect(unentity("Ordinary Time&nbsp;&mdash; St Peter Claver&#8217;s day")).toBe("Ordinary Time — St Peter Claver’s day");
+    expect(unentity("&#x2019;&amp;&copy;")).toBe("’&©");
+    expect(unentity("plain text")).toBe("plain text");
+  });
+
+  it("unentity leaves things that only look like entities alone", () => {
+    expect(unentity("5 &lt 6 & 7&nope;")).toBe("5 &lt 6 & 7&nope;");
+    expect(unentity("&#999999999;")).toBe("&#999999999;");
+  });
+
+  /* The bug this guards: strip tags but not entities, then esc(), and the reader
+     sees the literal text "&#8217;" — "a bunch of numbers and symbols". */
+  it("plain() decodes before esc() ever sees the string", () => {
+    expect(plain("<p>Since you have been <i>raised</i>&#8230;</p>")).toBe("Since you have been raised…");
+    expect(esc(plain("Colossians 3:1-11&nbsp;"))).toBe("Colossians 3:1-11");
+    expect(plain({ text: "a<br>b" })).toBe("a b");
+    expect(plain({ source: "Luke 6:20-26" })).toBe("Luke 6:20-26");
+    expect(plain(null)).toBe("");
   });
 });

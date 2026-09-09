@@ -3,43 +3,49 @@
    confession, the plan of life, books, and the virtue of the month. */
 import { S, db, esc, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAINTS, EXAMEN_Q, VIRTUES, DOWS, season,
   saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, profOf, toast,
-  liturgicalColor, feastKey, usccbUrl, mysteriesFor, fastAbstinence } from "../core/data.js";
+  feastKey, usccbUrl, mysteriesFor, fastAbstinence } from "../core/data.js";
 import { PRAYERS, findPrayer, prayerById, rosarySteps, chapletSteps, examenSteps } from "../content/prayers.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet, haptic } from "../ui/dom.js";
-import { registerScreen, renderAll } from "../app/shell.js";
+import { registerScreen, renderAll, namesTheSame } from "../app/shell.js";
 
-/* ---------------- Universalis: the day's title and readings (US calendar) ---------------- */
+/* ---------------- the day's Mass readings ----------------
+   Fetched from our own function, which talks to Universalis server-side and hands
+   back clean JSON. The app used to inject Universalis' JSONP <script> directly;
+   content blockers dropped it and there was no timeout, so the card sat on
+   "Loading…" forever. A fetch we can time out and a card that always offers USCCB
+   mean the reader is never stranded. */
 let loadingFor=null;
 export function loadReadings(force=false){
   const ds=todayS().replace(/-/g,"");
-  if(!force&&(S.liturgy.date===ds||loadingFor===ds))return;
+  if(loadingFor===ds)return;
+  if(!force&&S.liturgy.date===ds&&S.liturgy.loaded)return;
+  if(!force&&S.liturgy.date===ds&&S.liturgy.error)return;   // one failure per day; the retry button forces
   loadingFor=ds;
-  window.universalisCallback=j=>{
-    try{
-      const strip=v=>(typeof v==="object"?(v?.text||""):(v||"")).replace(/<[^>]+>/g,"").trim();
-      S.liturgy={date:ds,day:strip(j.day),readings:j,loaded:true};
-    }catch{ S.liturgy={date:ds,loaded:false,error:true}; }
-    loadingFor=null; renderAll();
-  };
-  const sc=document.createElement("script");
-  sc.src="https://universalis.com/USA/"+ds+"/jsonpmass.js"; sc.async=true;
-  sc.onerror=()=>{ S.liturgy={date:ds,loaded:false,error:true}; loadingFor=null; render(); };
-  document.head.appendChild(sc);
+  const ctl=new AbortController();
+  const bail=setTimeout(()=>ctl.abort(),9000);
+  fetch("/.netlify/functions/readings?date="+ds,{signal:ctl.signal})
+    .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+    .then(j=>{
+      if(j.error)throw new Error(j.error);
+      S.liturgy={date:ds,day:j.day||"",readings:j.readings||[],copyright:j.copyright||"",loaded:true};
+    })
+    .catch(()=>{ S.liturgy={date:ds,loaded:false,error:true}; })
+    .finally(()=>{ clearTimeout(bail); loadingFor=null; renderAll(); });
 }
+A.retryReadings=()=>{ S.liturgy={}; loadReadings(true); renderAll(); };
 
 function render(){
   loadReadings();
   const now=new Date(), date=todayS(), me=S.user.uid;
-  const c=liturgicalColor(now), sea=season(now).name, saint=SAINTS[feastKey(now)], fa=fastAbstinence(now);
+  const sea=season(now).name, saint=SAINTS[feastKey(now)], fa=fastAbstinence(now);
   const L=S.liturgy||{};
   const dn=doneSet(date);
   const pr=(S.state.practices||[]);
   const todayPr=pr.filter(p=>scheduledToday(p));
   const mys=mysteriesFor(now);
   const easter=sea==="Easter";
-  const r=L.readings||{};
-  const ref=v=>v&&typeof v==="object"?(v.source||""):"";
-  const refs=[["First Reading",ref(r.Mass_R1)],["Psalm",ref(r.Mass_Ps)],["Second Reading",ref(r.Mass_R2)],["Gospel",ref(r.Mass_G)]].filter(x=>x[1]);
+  /* Only the four proclaimed at Mass get a reference line; the acclamation is a verse. */
+  const refs=(L.readings||[]).filter(x=>x.label!=="Gospel Acclamation"&&x.source);
 
   const conf=(S.state.confession||{})[me]||{};
   const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).slice().sort();
@@ -52,15 +58,22 @@ function render(){
 
   $("page-pray").innerHTML=`
     <div class="card lit-card"><div class="bar"></div><div class="body">
-      <div class="eyebrow lit">${esc(sea)} · ${c.name}</div>
+      <div class="eyebrow lit">${esc(sea)}</div>
       <div class="day">${esc(L.day||saint||"Feria")}</div>
-      <div class="meta">${saint&&L.day&&!L.day.includes(saint)?esc(saint)+" · ":""}${fa?esc(fa.label)+" · ":""}${easter?"Regina Caeli replaces the Angelus":"Rosary: "+esc(mys.name)}</div>
+      <div class="meta">${saint&&L.day&&!namesTheSame(L.day,saint)?esc(saint)+" · ":""}${fa?esc(fa.label)+" · ":""}${easter?"Regina Caeli replaces the Angelus":"Rosary: "+esc(mys.name)}</div>
     </div></div>
 
     <div class="card readings">
-      <div class="sec-row"><h2 class="sec">Today at Mass</h2><a class="btn sm" href="${usccbUrl(now)}" target="_blank" rel="noopener">${ICON.ext} USCCB</a></div>
-      ${refs.length?refs.map(([l,vv])=>`<div class="ref"><div class="l">${l}</div><div class="v">${esc(vv)}</div></div>`).join(""):(L.error?'<div class="empty">Readings couldn\'t load. Open USCCB for today\'s readings.</div>':'<div class="empty">Loading today\'s readings…</div>')}
-      <div class="hint" style="margin-top:10px">The USCCB page has the readings as proclaimed at Mass (NABRE). ${refs.length?`<button class="link" onclick="A.openReadings()">Read the text here</button> (Jerusalem Bible, via Universalis).`:""}</div>
+      <div class="sec-row"><h2 class="sec">Today at Mass</h2></div>
+      ${refs.length
+        ?refs.map(x=>`<div class="ref"><div class="l">${esc(x.label)}</div><div class="v">${esc(x.source)}</div></div>`).join("")
+        :L.error
+          ?`<div class="empty">The readings didn't load. <button class="link" onclick="A.retryReadings()">Try again</button></div>`
+          :`<div class="ref skeleton"><div class="l">First Reading</div><div class="v">&nbsp;</div></div><div class="ref skeleton"><div class="l">Psalm</div><div class="v">&nbsp;</div></div><div class="ref skeleton"><div class="l">Gospel</div><div class="v">&nbsp;</div></div>`}
+      <div class="ref-actions">
+        ${refs.length?`<button class="btn sm" onclick="A.openReadings()">Read them</button>`:""}
+        <a class="btn sm ghost" href="${usccbUrl(now)}" target="_blank" rel="noopener">${ICON.ext} USCCB</a>
+      </div>
     </div>
 
     <div class="sec-row" style="margin-top:6px"><h2 class="sec">Pray</h2></div>
@@ -165,13 +178,15 @@ A.delItem=id=>delItem(id);
 
 /* ---------------- readers ---------------- */
 A.openReadings=()=>{
-  const r=S.liturgy?.readings||{};
-  const block=(label,val,open)=>{ if(!val)return""; const src=typeof val==="object"?(val.source||""):""; const text=typeof val==="object"?(val.text||""):val; if(!text)return""; return `<details class="rdg"${open?" open":""}><summary>${label}<span class="src">${esc(src)}</span></summary><div class="rtext">${text}</div></details>`; };
-  const cp=r.copyright?(typeof r.copyright==="object"?(r.copyright.text||""):r.copyright):"";
-  openSheet(`<div class="reader"><div class="eyebrow lit">Today at Mass</div><div class="r-title" style="font-size:28px">${esc(S.liturgy.day||"")}</div>
-    <div class="r-note">Text: Jerusalem Bible, via Universalis. For the NABRE as read at Mass, <a href="${usccbUrl(new Date())}" target="_blank" rel="noopener">open USCCB</a>.</div>
-    <div style="margin-top:14px">${block("First Reading",r.Mass_R1,true)+block("Responsorial Psalm",r.Mass_Ps)+block("Second Reading",r.Mass_R2)+block("Gospel Acclamation",r.Mass_GA)+block("Gospel",r.Mass_G)}</div>
-    ${cp?`<div class="hint" style="margin-top:12px;opacity:.8">${cp}</div>`:""}</div>`,{cls:"full"});
+  const L=S.liturgy||{}, list=L.readings||[];
+  if(!list.length)return toast("The readings haven't loaded yet");
+  const block=(r,i)=>`<details class="rdg"${i===0?" open":""}><summary><span>${esc(r.label)}</span><span class="src">${esc(r.source)}</span></summary>
+    ${r.heading?`<div class="rhead">${esc(r.heading)}</div>`:""}
+    <div class="rtext">${r.body.map(p=>`<p>${esc(p)}</p>`).join("")}</div></details>`;
+  openSheet(`<div class="reader"><div class="eyebrow lit">Today at Mass</div><div class="r-title" style="font-size:28px">${esc(L.day||"")}</div>
+    <div class="r-note">Jerusalem Bible, via Universalis. For the NABRE as read at Mass in the United States, <a href="${usccbUrl(new Date())}" target="_blank" rel="noopener">open USCCB</a>.</div>
+    <div style="margin-top:14px">${list.map(block).join("")}</div>
+    ${L.copyright?`<div class="hint" style="margin-top:16px;opacity:.8">${esc(L.copyright)}</div>`:""}</div>`,{cls:"full"});
 };
 A.openLibrary=()=>{
   const easter=season(new Date()).name==="Easter";

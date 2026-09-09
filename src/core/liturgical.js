@@ -42,12 +42,15 @@ export const SAINTS={ "01-01":"Mary, Mother of God","01-02":"Ss. Basil & Gregory
    Season colours plus the days that override them: Gaudete and Laetare (rose),
    Palm Sunday, Good Friday and Pentecost (red), Holy Thursday (white).
    Feast-specific colours (martyrs, apostles) arrive with romcal later. */
+/* hex: the colour itself, for marks and fills. deep: the same colour dark enough to
+   read as small text on paper (all five clear 4.5:1). tint: the faintest wash, used
+   sparingly. ink: what sits on top of hex. */
 export const LIT_COLORS={
-  green: {name:"Green", hex:"#3E7A55", deep:"#2D5A3F", tint:"#E3EEE6", ink:"#FFFFFF"},
-  violet:{name:"Violet",hex:"#5B3D8C", deep:"#432C69", tint:"#EBE4F4", ink:"#FFFFFF"},
-  white: {name:"White", hex:"#B8912A", deep:"#8E6E1C", tint:"#F5EDD6", ink:"#FFFFFF"},
-  red:   {name:"Red",   hex:"#A8322F", deep:"#7E2321", tint:"#F5E1DF", ink:"#FFFFFF"},
-  rose:  {name:"Rose",  hex:"#C0607F", deep:"#94435F", tint:"#F6E4EA", ink:"#FFFFFF"}
+  green: {name:"Green", hex:"#3E7A55", deep:"#26523A", tint:"#EAF2EC", ink:"#FFFFFF"},
+  violet:{name:"Violet",hex:"#5B3D8C", deep:"#432C69", tint:"#F0EAF7", ink:"#FFFFFF"},
+  white: {name:"White", hex:"#B8912A", deep:"#79600F", tint:"#F8F1DE", ink:"#FFFFFF"},
+  red:   {name:"Red",   hex:"#A8322F", deep:"#7E2321", tint:"#F9E7E5", ink:"#FFFFFF"},
+  rose:  {name:"Rose",  hex:"#C0607F", deep:"#8A3B56", tint:"#FAEBF0", ink:"#FFFFFF"}
 };
 export function liturgicalColor(d){
   const y=d.getFullYear(), E=easter(y);
