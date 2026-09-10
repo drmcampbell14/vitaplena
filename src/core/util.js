@@ -10,6 +10,19 @@ export const rid=()=>Math.random().toString(36).slice(2,10);
 export const money=n=>"$"+(+n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 export const fmtT=t=>{if(!t)return"";const[h,m]=t.split(":").map(Number);const ap=h>=12?"PM":"AM";return((h%12)||12)+":"+String(m).padStart(2,"0")+" "+ap;};
 export const todayS=()=>ymd(new Date());
+
+/* Whole days from one calendar date to another. Subtracting a stored date from
+   `new Date()` counts *elapsed time*, not days: a visit logged this morning came
+   out as "-1d ago" until noon, because noon-today minus now-this-morning is
+   negative. Anchoring both ends to local noon makes the gap whole days, and
+   leaves a DST shift as 23 or 25 hours, which rounds correctly. */
+export function daysBetween(fromYmd,toYmd){
+  const a=new Date(fromYmd+"T12:00"), b=new Date(toYmd+"T12:00");
+  if(isNaN(a)||isNaN(b))return 0;
+  return Math.round((b-a)/864e5);
+}
+/** Whole days since a stored YYYY-MM-DD, as of today. Never negative for today. */
+export const daysSince=fromYmd=>daysBetween(fromYmd,todayS());
 export const dayIdx=d=>Math.floor(d.getTime()/864e5);
 export function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2400);}
 export function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}

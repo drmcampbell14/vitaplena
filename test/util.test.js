@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { todayS, fmtT, fmtMins, ordinal, esc, money, uid6, rid, DOWS, unentity, plain } from "../src/core/util.js";
+import { todayS, fmtT, fmtMins, ordinal, esc, money, uid6, rid, DOWS, unentity, plain, daysBetween, daysSince } from "../src/core/util.js";
 
 /* These helpers are tiny, but util.js is imported by nearly everything, so a broken
    import here takes the whole app down at load. todayS() in particular crosses into
@@ -71,5 +71,38 @@ describe("outside text", () => {
     expect(plain({ text: "a<br>b" })).toBe("a b");
     expect(plain({ source: "Luke 6:20-26" })).toBe("Luke 6:20-26");
     expect(plain(null)).toBe("");
+  });
+});
+
+describe("daysBetween() / daysSince()", () => {
+  /* The bug this guards: subtracting a stored date from `new Date()` counts
+     elapsed time, not calendar days. A confession logged at 8am read "-1d ago"
+     until noon, because noon-today is later than 8am-today. */
+  it("counts calendar days, not elapsed hours", () => {
+    expect(daysBetween("2026-09-10", "2026-09-10")).toBe(0);
+    expect(daysBetween("2026-09-09", "2026-09-10")).toBe(1);
+    expect(daysBetween("2026-09-01", "2026-09-10")).toBe(9);
+  });
+
+  it("crosses months and years, and goes negative only for a future date", () => {
+    expect(daysBetween("2026-12-30", "2027-01-02")).toBe(3);
+    expect(daysBetween("2026-02-27", "2026-03-01")).toBe(2);
+    expect(daysBetween("2026-09-11", "2026-09-10")).toBe(-1);
+  });
+
+  /* Spring forward and fall back give 23h and 25h; rounding, not flooring, keeps
+     those a whole day apart. US DST 2026: forward Mar 8, back Nov 1. */
+  it("survives daylight saving in both directions", () => {
+    expect(daysBetween("2026-03-07", "2026-03-09")).toBe(2);
+    expect(daysBetween("2026-10-31", "2026-11-02")).toBe(2);
+  });
+
+  it("daysSince is never negative for something stored today", () => {
+    expect(daysSince(todayS())).toBe(0);
+  });
+
+  it("junk dates count as zero rather than NaN on the screen", () => {
+    expect(daysBetween("", "2026-09-10")).toBe(0);
+    expect(daysBetween("not-a-date", "2026-09-10")).toBe(0);
   });
 });

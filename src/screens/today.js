@@ -4,7 +4,7 @@
    Me is my practices, my tasks and events; Household is everyone's, with who has
    kept what. */
 import { S, esc, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, eventDoneOn, repeatLabel,
-  doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence } from "../core/data.js";
+  doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence, daysSince } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, toast } from "../ui/dom.js";
@@ -45,7 +45,7 @@ function render(){
   const overdue=S.items.filter(i=>i.kind==="task"&&!i.repeat&&!i.done&&i.due&&i.due<date&&mineOn(i,date)).length;
   const conf=(S.state.confession||{})[me]||{};
   const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).slice().sort();
-  if(clog.length){ const days=Math.floor((now-new Date(clog[clog.length-1]+"T12:00"))/864e5); if(days>=(conf.cadence||14))alerts.push(`<span class="chip gold">🕊 ${days} days since Confession</span>`); }
+  if(clog.length){ const days=daysSince(clog[clog.length-1]); if(days>=(conf.cadence||14))alerts.push(`<span class="chip gold" onclick="A.go('pray')">🕊 ${days} days since Confession</span>`); }
   const mr=S.state.marriageRhythm||"weekly", dow=now.getDay();
   if(mr==="daily"||(mr==="weekly"&&dow===0)||(mr==="monthly"&&now.getDate()===1))alerts.push(`<span class="chip lit" onclick="A.go('us')">💛 ${mr==="daily"?"Daily words":mr==="weekly"?"Weekly check-in":"Monthly sit-down"} with ${esc(partnerName())}</span>`);
   const fa=fastAbstinence(now); if(fa&&fa.abstinence)alerts.push(`<span class="chip warn">🐟 ${esc(fa.label)}</span>`);

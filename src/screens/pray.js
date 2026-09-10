@@ -3,7 +3,7 @@
    confession, the plan of life, books, and the virtue of the month. */
 import { S, db, esc, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAINTS, EXAMEN_Q, DOWS, season,
   saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, profOf, toast,
-  feastKey, usccbUrl, mysteriesFor, fastAbstinence } from "../core/data.js";
+  feastKey, usccbUrl, mysteriesFor, fastAbstinence, daysSince } from "../core/data.js";
 import { PRAYERS, findPrayer, prayerById, rosarySteps, chapletSteps, examenSteps } from "../content/prayers.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet, haptic } from "../ui/dom.js";
 import { registerScreen, renderAll, namesTheSame } from "../app/shell.js";
@@ -50,10 +50,20 @@ function render(){
   const conf=(S.state.confession||{})[me]||{};
   const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).slice().sort();
   const cad=conf.cadence||14;
-  let confLine="No confession logged yet.", confDue="Log your first visit.";
-  if(clog.length){ const last=new Date(clog[clog.length-1]+"T12:00"), days=Math.floor((now-last)/864e5); confLine=`Last: ${last.toLocaleDateString(undefined,{month:"long",day:"numeric"})} · ${days}d ago`; const due=cad-days; confDue=due>0?`Next within ${due} day${due===1?"":"s"}`:"It's time. The font of mercy is open."; }
+  let confLine="No confession logged yet.", confDue="Log your first visit.", confTile="Not logged yet", confDueNow=false;
+  if(clog.length){
+    const lastS=clog[clog.length-1], last=new Date(lastS+"T12:00"), days=daysSince(lastS), due=cad-days;
+    confLine=`Last: ${last.toLocaleDateString(undefined,{month:"long",day:"numeric"})} · ${days===0?"today":days+"d ago"}`;
+    confDue=due>0?`Next within ${due} day${due===1?"":"s"}`:"It's time. The font of mercy is open.";
+    confDueNow=due<=0;
+    confTile=days===0?"Went today ✓":due<=0?"It's time":`${days} day${days===1?"":"s"} ago`;
+  }
 
-  const examens=S.items.filter(i=>i.kind==="examen"&&isMine(i)).sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
+  const examens=myExamens();
+  const plan=S.state.plan||[];
+  const books=S.items.filter(i=>i.kind==="book");
+  const reading=books.filter(b=>!b.finished);
+  const bookTile=reading.length?(reading.length===1?reading[0].title:reading.length+" on the shelf"):(books.length?"All finished ✝":"Add what you're reading");
 
   $("page-pray").innerHTML=`
     <div class="card lit-card"><div class="bar"></div><div class="body">
@@ -91,28 +101,13 @@ function render(){
       ${todayPr.length?`<div class="hint" style="margin-top:10px">${todayPr.filter(p=>dn.has(p.id)).length} of ${todayPr.length} kept today. ${todayPr.every(p=>dn.has(p.id))?"Deo gratias.":""}</div>`:""}
     </div>
 
-    <div class="card">
-      <div class="sec-row"><h2 class="sec">Confession</h2><button class="btn sm" onclick="A.logConfession()">${ICON.dove} Went today</button></div>
-      <div class="row"><div class="emoji">🕯</div><div class="grow"><div class="title">${esc(confLine)}</div><div class="sub">${esc(confDue)}</div></div></div>
-      <label class="f">How often</label>
-      <select onchange="A.setCadence(this.value)"><option value="7"${cad==7?" selected":""}>Weekly</option><option value="14"${cad==14?" selected":""}>Every two weeks</option><option value="30"${cad==30?" selected":""}>Monthly</option></select>
-      ${clog.length?`<details style="margin-top:10px"><summary class="hint" style="cursor:pointer">Past visits (${clog.length})</summary>${clog.slice().reverse().slice(0,12).map(ds=>`<div class="row"><div class="grow title" style="font-size:15px">${new Date(ds+"T12:00").toLocaleDateString(undefined,{weekday:"short",month:"long",day:"numeric",year:"numeric"})}</div><button class="x" onclick="A.rmConfession('${ds}')">×</button></div>`).join("")}</details>`:""}
-    </div>
-
-    <div class="card">
-      <div class="sec-row"><h2 class="sec">Examens</h2></div>
-      <div class="verse-line">“${esc(EXAMEN_Q[dayIdx(now)%EXAMEN_Q.length])}”</div>
-      <button class="btn block" style="margin-top:12px" onclick="A.openPrayer('examen')">${ICON.candle} Make tonight's examen</button>
-      ${examens.length?`<details style="margin-top:12px"><summary class="hint" style="cursor:pointer">Past examens, private to you</summary>${examens.map(l=>`<div class="row"><div class="grow"><div class="qhist" style="font-size:16px">${esc(l.text)}</div><div class="sub">${new Date(l.createdAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</div></div><button class="x" onclick="A.delItem('${l.id}')">×</button></div>`).join("")}</details>`:""}
-    </div>
-
-    <div class="card">
-      <div class="sec-row"><h2 class="sec">Plan of life</h2></div>
-      ${(S.state.plan||[]).map(p=>`<div class="row"><div class="emoji">✝</div><div class="grow title">${esc(p.text)}</div><button class="x" onclick="A.rmPlan('${p.id}')">×</button></div>`).join("")||'<div class="empty">The commitments you\'ve made.</div>'}
-      <div class="addline"><input id="plan-in" placeholder="Add a commitment" onkeydown="if(event.key==='Enter')A.addPlan()"><button class="iconbtn" onclick="A.addPlan()">${ICON.plus}</button></div>
-    </div>
-
-    ${booksCard()}`;
+    <div class="sec-row" style="margin-top:6px"><h2 class="sec">Keep the rule</h2></div>
+    <div class="grid2">
+      <button class="ptile ${confDueNow?"lit":""}" onclick="A.openConfession()"><div class="t">Confession</div><div class="s">${esc(confTile)}</div></button>
+      <button class="ptile" onclick="A.openExamens()"><div class="t">The Examen</div><div class="s">${examens.length?examens.length+" written":"Close the day with God"}</div></button>
+      <button class="ptile" onclick="A.openPlan()"><div class="t">Plan of life</div><div class="s">${plan.length?plan.length+" commitment"+(plan.length===1?"":"s"):"What you've promised"}</div></button>
+      <button class="ptile" onclick="A.openBooks()"><div class="t">Spiritual reading</div><div class="s">${esc(bookTile)}</div></button>
+    </div>`;
 }
 
 function practiceRow(p,dn){
@@ -124,6 +119,91 @@ function practiceRow(p,dn){
     <button class="donebtn ${on?"on":""}" onclick="A.togglePractice('${p.id}')">${on?"Kept":"Done"}</button>
   </div>`;
 }
+
+/* ---------------- the four panes behind "Keep the rule" ----------------
+   Each is a full-screen sheet. After a write we repaint the sheet body in place
+   rather than calling openSheet() again, which would jump the scroll back to the
+   top — jarring when you tap "+15 min" halfway down the shelf. The data-pane
+   marker means a repaint can only ever land on the pane it belongs to. */
+const myExamens=()=>S.items.filter(i=>i.kind==="examen"&&isMine(i)).sort((a,b)=>b.createdAt-a.createdAt);
+const longDate=ds=>new Date(ds+"T12:00").toLocaleDateString(undefined,{weekday:"short",month:"long",day:"numeric",year:"numeric"});
+
+function repaint(name){
+  if(!document.querySelector(`.sheet.open [data-pane="${name}"]`))return;
+  $("sheet-body").innerHTML=PANES[name]();
+}
+function showPane(name){ openSheet(PANES[name](),{cls:"full"}); }
+
+const PANES={
+  confession(){
+    const conf=(S.state.confession||{})[S.user.uid]||{};
+    const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).slice().sort();
+    const cad=conf.cadence||14, now=new Date();
+    let line="No confession logged yet.", due="Log your first visit.";
+    if(clog.length){
+      const lastS=clog[clog.length-1], last=new Date(lastS+"T12:00"), days=daysSince(lastS), left=cad-days;
+      line=`Last: ${last.toLocaleDateString(undefined,{month:"long",day:"numeric"})} · ${days===0?"today":days+"d ago"}`;
+      due=left>0?`Next within ${left} day${left===1?"":"s"}`:"It's time. The font of mercy is open.";
+    }
+    return `<div class="reader" data-pane="confession"><div class="eyebrow lit">The font of mercy</div>
+      <div class="r-title" style="font-size:30px">Confession</div>
+      <div class="r-note">${esc(line)} · ${esc(due)}</div>
+      <div class="amen" style="margin-top:20px"><button class="btn block" onclick="A.logConfession()">${ICON.dove} I went today</button></div>
+      <label class="f">How often</label>
+      <select onchange="A.setCadence(this.value)"><option value="7"${cad==7?" selected":""}>Weekly</option><option value="14"${cad==14?" selected":""}>Every two weeks</option><option value="30"${cad==30?" selected":""}>Monthly</option></select>
+      ${clog.length?`<div class="sec-row" style="margin-top:26px"><h2 class="sec">Past visits</h2><span class="hint">${clog.length}</span></div>
+        ${clog.slice().reverse().slice(0,24).map(ds=>`<div class="row"><div class="emoji">🕯</div><div class="grow title" style="font-size:15px">${longDate(ds)}</div><button class="x" onclick="A.rmConfession('${ds}')">×</button></div>`).join("")}`:""}
+    </div>`;
+  },
+
+  examens(){
+    const list=myExamens().slice(0,30);
+    return `<div class="reader" data-pane="examens"><div class="eyebrow lit">Tonight</div>
+      <div class="r-title" style="font-size:30px">The Examen</div>
+      <div class="r-note">Five minutes before sleep: give thanks, ask light, review the day, ask pardon, resolve.</div>
+      <div class="verse-line" style="margin-top:18px">“${esc(EXAMEN_Q[dayIdx(new Date())%EXAMEN_Q.length])}”</div>
+      <div class="amen"><button class="btn block" onclick="A.openPrayer('examen')">${ICON.candle} Make tonight's examen</button></div>
+      ${list.length?`<div class="sec-row" style="margin-top:26px"><h2 class="sec">Past examens</h2><span class="hint">private to you</span></div>
+        ${list.map(l=>`<div class="row"><div class="emoji">🕯</div><div class="grow"><div class="qhist" style="font-size:16px">${esc(l.text)}</div><div class="sub">${new Date(l.createdAt).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})}</div></div><button class="x" onclick="A.delExamen('${l.id}')">×</button></div>`).join("")}`:""}
+    </div>`;
+  },
+
+  plan(){
+    const plan=S.state.plan||[];
+    return `<div class="reader" data-pane="plan"><div class="eyebrow lit">What you've promised</div>
+      <div class="r-title" style="font-size:30px">Plan of life</div>
+      <div class="r-note">The commitments you have made before God. Few, and kept.</div>
+      <div style="margin-top:18px">${plan.map(x=>`<div class="row"><div class="emoji">✝</div><div class="grow title">${esc(x.text)}</div><button class="x" onclick="A.rmPlan('${x.id}')">×</button></div>`).join("")||'<div class="empty">Daily Mass. The Rosary. Weekly confession. Add what you have resolved.</div>'}</div>
+      <div class="addline"><input id="plan-in" placeholder="Add a commitment" onkeydown="if(event.key==='Enter')A.addPlan()"><button class="iconbtn" onclick="A.addPlan()">${ICON.plus}</button></div>
+    </div>`;
+  },
+
+  books(){
+    const books=S.items.filter(i=>i.kind==="book").sort((a,b)=>(a.finished-b.finished)||(b.createdAt-a.createdAt));
+    const last7=[...Array(7)].map((_,i)=>addD(new Date(),i-6));
+    return `<div class="reader" data-pane="books"><div class="eyebrow lit">The shelf</div>
+      <div class="r-title" style="font-size:30px">Spiritual reading</div>
+      <div class="r-note">Fifteen minutes a day outlasts an hour once a month.</div>
+      <div class="amen" style="margin-top:18px"><button class="btn block" onclick="A.openBookModal()">${ICON.plus} Add a book</button></div>
+      <div style="margin-top:20px">${books.map(b=>{
+        const log=b.log||{}, total=Object.values(log).reduce((x,y)=>x+(+y||0),0), st=bookStreak(b);
+        const today=log[todayS()]||0, goal=b.goal||15;
+        const wk=last7.map(d=>`<span class="${(log[ymd(d)]||0)>0?"hit":""}">${"SMTWTFS"[d.getDay()]}</span>`).join("");
+        return `<div style="padding:14px 0;border-top:1px solid var(--line-2)">
+          <div class="sec-row" style="margin:0"><div class="grow"><div class="title ${b.finished?"done-text":""}" style="font-weight:600;font-size:17px">${esc(b.title)}</div><div class="sub">${b.author?esc(b.author)+" · ":""}${st>1?st+"-day streak · ":""}${fmtMins(total)} total${today?` · today ${fmtMins(today)}${today>=goal?" ✓":""}`:""}</div></div><button class="x" onclick="A.confirmDel('${b.id}','Remove this book and its log?')">×</button></div>
+          <div class="wk7">${wk}</div>
+          ${b.finished
+            ?`<div class="chips" style="margin-top:10px"><button class="chip" onclick="A.finishBook('${b.id}',false)">Reopen</button></div>`
+            :`<div class="chips" style="margin-top:10px"><button class="chip lit" onclick="A.logRead('${b.id}',5)">+5 min</button><button class="chip lit" onclick="A.logRead('${b.id}',15)">+15</button><button class="chip lit" onclick="A.logRead('${b.id}',30)">+30</button><button class="chip" onclick="A.finishBook('${b.id}',true)">Finished ✝</button></div>`}
+        </div>`; }).join("")||'<div class="empty">Introduction to the Devout Life. Story of a Soul. The Imitation of Christ.</div>'}</div>
+    </div>`;
+  }
+};
+
+A.openConfession=()=>showPane("confession");
+A.openExamens=()=>showPane("examens");
+A.openPlan=()=>showPane("plan");
+A.openBooks=()=>showPane("books");
 
 /* ---------------- actions: practices, confession, plan, virtue ---------------- */
 A.togglePractice=pid=>{
@@ -156,13 +236,14 @@ A.logConfession=()=>{
   const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).slice();
   if(clog.includes(todayS()))return toast("Already logged today");
   clog.push(todayS()); clog.sort();
-  saveField(`confession.${S.user.uid}.log`,clog); toast("Deo gratias 🕊");
+  saveField(`confession.${S.user.uid}.log`,clog).then(()=>repaint("confession"));
+  toast("Deo gratias 🕊");
 };
-A.rmConfession=ds=>{ const conf=(S.state.confession||{})[S.user.uid]||{}; const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).filter(d=>d!==ds); saveField(`confession.${S.user.uid}.log`,clog); };
-A.setCadence=v=>saveField(`confession.${S.user.uid}.cadence`,+v);
-A.addPlan=()=>{ const v=$("plan-in").value.trim(); if(!v)return; saveKey("plan",(S.state.plan||[]).concat([{id:rid(),text:v}])); };
-A.rmPlan=id=>saveKey("plan",(S.state.plan||[]).filter(p=>p.id!==id));
-A.delItem=id=>delItem(id);
+A.rmConfession=ds=>{ const conf=(S.state.confession||{})[S.user.uid]||{}; const clog=(conf.log&&conf.log.length?conf.log:(conf.last?[conf.last]:[])).filter(d=>d!==ds); saveField(`confession.${S.user.uid}.log`,clog).then(()=>repaint("confession")); };
+A.setCadence=v=>saveField(`confession.${S.user.uid}.cadence`,+v).then(()=>repaint("confession"));
+A.addPlan=()=>{ const v=$("plan-in").value.trim(); if(!v)return; saveKey("plan",(S.state.plan||[]).concat([{id:rid(),text:v}])).then(()=>repaint("plan")); };
+A.rmPlan=id=>saveKey("plan",(S.state.plan||[]).filter(p=>p.id!==id)).then(()=>repaint("plan"));
+A.delExamen=id=>delItem(id).then(()=>repaint("examens"));
 
 /* ---------------- readers ---------------- */
 A.openReadings=()=>{
@@ -238,7 +319,7 @@ A.gNext=()=>{
 };
 function finishGuided(){
   const p=G.prayer; closeSheet();
-  if(p.guided==="examen"&&G.notes)addItem({kind:"examen",text:G.notes});
+  if(p.guided==="examen"&&G.notes)addItem({kind:"examen",text:G.notes});   // the examens pane picks it up next open
   const practice=(S.state.practices||[]).find(x=>findPrayer(x.name)?.id===p.id);
   if(practice&&!doneSet(todayS()).has(practice.id))A.togglePractice(practice.id); else toast("Amen");
 }
@@ -255,23 +336,11 @@ A.hideBell=()=>$("bell").classList.remove("on");
 
 /* ---------------- books (the shelf) ---------------- */
 function bookStreak(b){ let n=0,d=new Date(); const log=b.log||{}; if(!log[ymd(d)])d=addD(d,-1); while((log[ymd(d)]||0)>0){n++;d=addD(d,-1);if(n>999)break;} return n; }
-function booksCard(){
-  const books=S.items.filter(i=>i.kind==="book").sort((a,b)=>(a.finished-b.finished)||(b.createdAt-a.createdAt));
-  const last7=[...Array(7)].map((_,i)=>addD(new Date(),i-6));
-  return `<div class="card"><div class="sec-row"><h2 class="sec">Spiritual reading</h2><button class="btn ghost sm" onclick="A.openBookModal()">${ICON.plus} Book</button></div>
-  ${books.map(b=>{ const log=b.log||{}; const total=Object.values(log).reduce((x,y)=>x+(+y||0),0); const st=bookStreak(b); const today=log[todayS()]||0; const goal=b.goal||15;
-    const wk=last7.map(d=>`<span class="${(log[ymd(d)]||0)>0?"hit":""}">${"SMTWTFS"[d.getDay()]}</span>`).join("");
-    return `<div style="padding:10px 0;border-top:1px solid var(--line-2)"><div class="sec-row" style="margin:0"><div class="grow"><div class="title ${b.finished?"done-text":""}" style="font-weight:600">${esc(b.title)}</div><div class="sub">${b.author?esc(b.author)+" · ":""}${st>1?st+"-day streak · ":""}${fmtMins(total)} total${today?` · today ${fmtMins(today)}${today>=goal?" ✓":""}`:""}</div></div><button class="x" onclick="A.confirmDel('${b.id}','Remove this book and its log?')">×</button></div>
-      <div class="wk7">${wk}</div>
-      ${b.finished?`<div class="chips" style="margin-top:8px"><button class="chip" onclick="A.finishBook('${b.id}',false)">Reopen</button></div>`:`<div class="chips" style="margin-top:8px"><button class="chip lit" onclick="A.logRead('${b.id}',5)">+5 min</button><button class="chip lit" onclick="A.logRead('${b.id}',15)">+15</button><button class="chip lit" onclick="A.logRead('${b.id}',30)">+30</button><button class="chip" onclick="A.finishBook('${b.id}',true)">Finished ✝</button></div>`}
-    </div>`; }).join("")||'<div class="empty">Introduction to the Devout Life. Story of a Soul. The Imitation of Christ. Add what you\'re reading.</div>'}
-  </div>`;
-}
 A.openBookModal=()=>openModal(`<h3>Add a book</h3><label class="f">Title</label><input id="m-bk-title" placeholder="Introduction to the Devout Life"><label class="f">Author</label><input id="m-bk-author" placeholder="St. Francis de Sales"><label class="f">Daily goal (minutes)</label><input id="m-bk-goal" type="number" inputmode="numeric" value="15">
   <div class="actions"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><button class="btn" onclick="A.saveBook()">Add to shelf</button></div>`);
-A.saveBook=()=>{ const title=$("m-bk-title").value.trim(); if(!title)return; addItem({kind:"book",title,author:$("m-bk-author").value.trim(),start:todayS(),goal:Math.max(1,+$("m-bk-goal").value||15),log:{},notes:[],finished:false}); closeModal(); };
-A.logRead=(id,mins)=>{ const b=S.items.find(i=>i.id===id); if(!b)return; const log={...(b.log||{})}; log[todayS()]=(log[todayS()]||0)+mins; updItem(id,{log}); toast(log[todayS()]>=(b.goal||15)?"Goal reached today ✓":"+"+mins+" min"); };
-A.finishBook=(id,fin)=>{ updItem(id,{finished:fin}); if(fin)toast("Finished. Deo gratias ✝"); };
-A.confirmDel=(id,msg)=>confirmModal(msg,()=>delItem(id));
+A.saveBook=()=>{ const title=$("m-bk-title").value.trim(); if(!title)return; addItem({kind:"book",title,author:$("m-bk-author").value.trim(),start:todayS(),goal:Math.max(1,+$("m-bk-goal").value||15),log:{},notes:[],finished:false}).then(()=>repaint("books")); closeModal(); };
+A.logRead=(id,mins)=>{ const b=S.items.find(i=>i.id===id); if(!b)return; const log={...(b.log||{})}; log[todayS()]=(log[todayS()]||0)+mins; updItem(id,{log}).then(()=>repaint("books")); toast(log[todayS()]>=(b.goal||15)?"Goal reached today ✓":"+"+mins+" min"); };
+A.finishBook=(id,fin)=>{ updItem(id,{finished:fin}).then(()=>repaint("books")); if(fin)toast("Finished. Deo gratias ✝"); };
+A.confirmDel=(id,msg)=>confirmModal(msg,()=>delItem(id).then(()=>repaint("books")));
 
 registerScreen("pray",render);
