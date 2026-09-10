@@ -13,18 +13,43 @@ export const A = (window.A = window.A || {});
 /** Haptic tap where supported (Android, Capacitor); silently nothing elsewhere. */
 export function haptic(pattern=12){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch{ /* no-op */ } }
 
+/* ---------------- getting out of an overlay ----------------
+   A full-screen sheet hides the whole app, so every instinct for leaving it has
+   to work: the Done bar, the phone's back gesture, Escape on a keyboard, and a
+   tap outside on the sheets that have an outside. Opening an overlay claims one
+   history entry; closing it from a button gives that entry back, and a real back
+   press arrives in popstate, where we close without touching history again. */
+let owned=0, unwinding=false;
+function claimBack(){ owned++; try{ history.pushState({vpOverlay:owned},""); }catch{ /* no-op */ } }
+function releaseBack(){ if(owned<=0||unwinding)return; unwinding=true; owned--; try{ history.back(); }catch{ unwinding=false; } }
+window.addEventListener("popstate",()=>{
+  if(unwinding){ unwinding=false; return; }     // an entry we gave back ourselves
+  if(owned<=0)return;                           // not ours; let the page navigate
+  owned--;
+  if($("modal").classList.contains("open"))shutModal();      // the modal sits on top
+  else if($("sheet").classList.contains("open"))shutSheet();
+});
+window.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  if($("modal").classList.contains("open"))closeModal();
+  else if($("sheet").classList.contains("open"))closeSheet();
+});
+
 /* ---------------- modal (small dialogs: forms, confirms) ---------------- */
 export function openModal(html){
   $("modal-body").innerHTML=html;
   $("modal").classList.add("open");
   document.body.classList.add("no-scroll");
+  claimBack();
   setTimeout(()=>{ const f=$("modal-body").querySelector("input:not([type=hidden]),textarea,select"); if(f)f.focus(); },60);
 }
-export function closeModal(){
+/** Take the modal off the screen. closeModal() also hands back its history entry. */
+function shutModal(){
   $("modal").classList.remove("open");
   $("modal-body").innerHTML="";
   if(!$("sheet").classList.contains("open"))document.body.classList.remove("no-scroll");
 }
+export function closeModal(){ shutModal(); releaseBack(); }
 let _confirmFn=null;
 export function confirmModal(message,fn,{danger=true,yes="Yes, do it"}={}){
   _confirmFn=fn;
@@ -38,18 +63,26 @@ A._confirmYes=()=>{ const f=_confirmFn; _confirmFn=null; closeModal(); if(f)f();
 /* ---------------- sheet (full-height readers: prayers, Beacon, settings) ---------------- */
 export function openSheet(html,{cls=""}={}){
   const s=$("sheet");
+  const already=s.classList.contains("open");
   $("sheet-body").innerHTML=html;
   s.className="sheet open "+cls;
   document.body.classList.add("no-scroll");
   $("sheet-body").scrollTop=0;
+  if(!already)claimBack();   // swapping one pane for another is not a second entry
 }
-export function closeSheet(){
+/** Take the sheet off the screen. closeSheet() also hands back its history entry. */
+function shutSheet(){
   const s=$("sheet");
   s.classList.remove("open");
   setTimeout(()=>{ if(!s.classList.contains("open")){ $("sheet-body").innerHTML=""; s.className="sheet"; } },260);
   if(!$("modal").classList.contains("open"))document.body.classList.remove("no-scroll");
 }
+export function closeSheet(){ shutSheet(); releaseBack(); }
 A.closeSheet=closeSheet;
+/* Tapping the dimmed area outside a bottom sheet closes it. A full sheet covers
+   the screen, so there is nothing outside to tap — hence the Done bar. */
+$("sheet").addEventListener("click",e=>{ if(e.target===$("sheet"))closeSheet(); });
+$("modal").addEventListener("click",e=>{ if(e.target===$("modal"))closeModal(); });
 
 /* ---------------- toast ---------------- */
 let _toastT=null;

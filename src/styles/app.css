@@ -434,11 +434,20 @@ details.rdg .rtext p { margin: 0 0 10px; }
 .sheet.open { pointer-events: auto; }
 .sheet.open::before { opacity: 1; }
 .sheet.open .panel { transform: none; }
-.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 10px auto 0; flex: none; }
-.sheet .s-close { position: absolute; top: 12px; right: 12px; }
-#sheet-body { overflow-y: auto; padding: 8px 20px calc(24px + var(--safe-b)); -webkit-overflow-scrolling: touch; }
+/* The way out. This used to be a bare ✕ at top:12px inside a full-height panel,
+   which put it under the notch on any phone that has one — visible in a
+   screenshot, untappable in the hand. It is now a bar above the scroller that
+   carries the safe-area inset itself. */
+.sheet .s-head { position: relative; flex: none; display: flex; align-items: center; padding: 12px 12px 8px; }
+.sheet .grab { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: 40px; height: 5px; border-radius: 3px; background: var(--line); }
+.sheet .s-back { display: inline-flex; align-items: center; gap: 3px; padding: 8px 14px 8px 8px; margin-left: -4px; border-radius: 999px; color: var(--marian); font-size: 15.5px; font-weight: 600; }
+.sheet .s-back svg { width: 19px; height: 19px; }
+.sheet .s-back:active { background: var(--paper-3); }
+#sheet-body { overflow-y: auto; padding: 4px 20px calc(24px + var(--safe-b)); -webkit-overflow-scrolling: touch; }
+
 .sheet.full .panel { max-height: 100dvh; height: 100dvh; border-radius: 0; }
-.sheet.full #sheet-body { padding-top: calc(var(--safe-t) + 12px); }
+.sheet.full .s-head { padding-top: calc(var(--safe-t) + 12px); border-bottom: 1px solid var(--line-2); background: var(--paper); }
+.sheet.full .grab { display: none; }   /* nothing to drag when it fills the screen */
 
 .modal { position: fixed; inset: 0; z-index: 130; display: grid; place-items: center; padding: 20px; background: rgba(20,22,18,.45); opacity: 0; pointer-events: none; transition: opacity .2s; }
 .modal.open { opacity: 1; pointer-events: auto; }

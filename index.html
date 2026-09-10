@@ -45,8 +45,15 @@
 <!-- Bottom sheet: prayers, Beacon, menus -->
 <div class="sheet" id="sheet">
   <div class="panel">
-    <div class="grab"></div>
-    <button class="iconbtn ghost s-close" onclick="A.closeSheet()" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <!-- The bar is a sibling of the scroller, not floating over it: it stays put
+         while the reading scrolls, and it sits below the notch on every phone. -->
+    <div class="s-head">
+      <div class="grab"></div>
+      <button class="s-back" onclick="A.closeSheet()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span>Done</span>
+      </button>
+    </div>
     <div id="sheet-body"></div>
   </div>
 </div>
