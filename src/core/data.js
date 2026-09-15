@@ -42,8 +42,9 @@ export const DOMAINS=[
  {name:"Our Rule of Life",qs:["Which of our commitments are bearing fruit — and which have gone stale?","What should we add, drop, or change for the coming month?","Where is God gently asking us to stretch?"]}];
 export const THREE_WORDS=[["please","🙏","Please","Make one request kindly today — ask, don't demand."],["thanks","🌞","Thank you","Say one specific thank-you out loud."],["sorry","🕊","Sorry","Make peace before the sun goes down."]];
 export const EXAMEN_Q=["Where did I meet Christ in the people I encountered today?","What am I most grateful for today?","When today did I act out of love — and when out of fear?","What one grace do I need for tomorrow?","Where did I resist God's promptings today?","How did I love my spouse today?","What moment today deserves a second look with God?","Did my day reflect my Plan of Life?"];
-export const DEFAULT_PRACTICES=[{id:"p1",name:"Morning Offering",emoji:"🙏",time:"07:00",mins:5,days:[0,1,2,3,4,5,6]},{id:"p2",name:"Holy Mass",emoji:"✝️",time:"08:00",mins:60,days:[0,1,2,3,4,5,6]},{id:"p3",name:"Angelus",emoji:"🔔",time:"12:00",mins:5,days:[0,1,2,3,4,5,6]},{id:"p4",name:"Holy Rosary",emoji:"📿",time:"19:00",mins:20,days:[0,1,2,3,4,5,6]},{id:"p5",name:"Evening Examen",emoji:"🕯️",time:"21:00",mins:10,days:[0,1,2,3,4,5,6]}];
-export const DEFAULT_PLAN=[{id:"pl1",text:"Daily Mass"},{id:"pl2",text:"Holy Rosary"},{id:"pl3",text:"Spiritual reading 15 min"},{id:"pl4",text:"Weekly confession"}];
+/* The seed for a new household lives in defaults.js, which the Netlify function
+   that creates households imports too — one definition for both sides. */
+export * from "./defaults.js";
 export const VIRTUES=["Faith","Hope","Charity","Prudence","Justice","Fortitude","Temperance","Humility","Patience","Chastity","Diligence","Kindness","Generosity","Meekness","Gratitude","Obedience","Perseverance","Silence & Recollection"];
 
 /* ---------------- tiny utils ---------------- */

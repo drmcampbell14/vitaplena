@@ -3,10 +3,11 @@
    same Firebase user. A user with no household record is sent to the household
    step, and from there either creates one (and continues to onboarding) or
    joins a spouse's with an invite code. */
-import { auth, db, provider, S, uid6, rid, DEFAULT_PRACTICES, DEFAULT_PLAN } from "../core/data.js";
+import { auth, db, provider, S } from "../core/data.js";
+import { callFn } from "../lib/api.js";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc, addDoc, collection, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { $, A, esc, toast, initialsOf } from "../ui/dom.js";
 
 const AUTH_MESSAGES={
@@ -133,30 +134,30 @@ export function showHouseholdSetup(user){
   $("btn-create").onclick=createHousehold;
   $("btn-join").onclick=joinHousehold;
 }
+/* Creating a household is four linked writes — the household, its state, the
+   invite code, the user's pointer record — and it used to do them one at a time
+   from here. A failure partway left a household nobody was pointed at, reported
+   as "Could not create household" even though one had just been made. It cannot
+   be batched from the browser: the rules check membership by reading the
+   household document, and a document written earlier in the same batch is not
+   visible to that read, so the state and invite writes would be denied. The
+   function does all four atomically with the Admin SDK instead. */
 async function createHousehold(){
-  const name=$("ob-name").value.trim(), ini=$("ob-initials").value.trim().toUpperCase(), err=$("ob-err");
+  const err=$("ob-err");
+  const name=$("ob-name").value.trim(), ini=$("ob-initials").value.trim().toUpperCase();
   if(!name||!ini)return err.textContent="Add your name and initials first.";
-  const hname=$("ob-house").value.trim()||name+"'s Household";
-  const code=uid6();
+  err.textContent="";
   $("btn-create").disabled=true;
   try{
-    const trialEnds=new Date(); trialEnds.setDate(trialEnds.getDate()+30);
-    const href=await addDoc(collection(db,"households"),{
-      name:hname,code,owner:S.user.uid,members:[S.user.uid],profiles:{[S.user.uid]:{name,initials:ini}},
-      subscription:{status:"trial",plan:"family",source:"none",trialEndsAt:trialEnds.toISOString().slice(0,10)},
-      countdown:{label:"",date:""},createdAt:serverTimestamp()});
-    await setDoc(doc(db,"invites",code),{hid:href.id});
-    await setDoc(doc(db,"households",href.id,"state","main"),{
-      practices:DEFAULT_PRACTICES,plan:DEFAULT_PLAN,rhythmDone:{},
-      taskSections:{[S.user.uid]:[{id:rid(),name:"Career & Goals",emoji:"🎯"}],
-        together:[{id:rid(),name:"Household",emoji:"🏡"},{id:rid(),name:"Faith",emoji:"✝️"},{id:rid(),name:"Health",emoji:"💪"}]},
-      meals:{},grocery:[],budget:{income:[],expense:[],savings:[]},funds:[],debts:[],
-      focus:[],countdowns:[],books:[],virtue:{},confession:{},people:[],modules:{meals:false,finance:false,family:false,notes:false}});
-    await setDoc(doc(db,"users",S.user.uid),{hid:href.id,name,initials:ini});
-    S.hid=href.id;
-    handlers.onCreated(href.id,name);
-  }catch(e){ err.textContent="Could not create household: "+(e.message||e); $("btn-create").disabled=false; }
+    const { hid }=await callFn("household-admin",{op:"create_household",name,initials:ini,houseName:$("ob-house").value.trim()});
+    S.hid=hid;
+    handlers.onCreated(hid,name);
+  }catch(e){
+    err.textContent=e?.error||("Could not create household: "+(e?.message||e));
+    $("btn-create").disabled=false;
+  }
 }
+
 async function joinHousehold(){
   const name=$("ob-name").value.trim(), ini=$("ob-initials").value.trim().toUpperCase(), err=$("ob-err");
   const code=$("ob-code").value.trim().toUpperCase();

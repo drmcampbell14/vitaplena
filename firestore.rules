@@ -65,10 +65,19 @@ service cloud.firestore {
       // Nobody may list households — there is no legitimate "browse all households" query.
       allow list: if false;
 
-      // You may create a household only with yourself as the sole member and sole profile.
+      /* You may create a household only with yourself as the sole member and sole
+         profile — and you may not hand yourself a paid plan on the way in. The
+         update rule below refuses to let a client touch `subscription`; without
+         the same check here, a modified client could simply set
+         subscription.status = "active" at creation and keep the paid entitlement
+         and quota for good. A new household starts on trial or with no
+         subscription at all; every later change comes from the billing webhook
+         through the Admin SDK, which bypasses these rules. */
       allow create: if signedIn()
         && request.resource.data.members == [request.auth.uid]
-        && request.resource.data.profiles.keys().hasOnly([request.auth.uid]);
+        && request.resource.data.profiles.keys().hasOnly([request.auth.uid])
+        && (!('subscription' in request.resource.data)
+            || request.resource.data.subscription.status == 'trial');
 
       /* Members may edit household fields (name, countdown, profiles) but never the
          roster, never the owner (transfers go through the household-admin function),

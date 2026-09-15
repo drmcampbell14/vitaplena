@@ -7,7 +7,7 @@ import { S, esc, jsq, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, 
   doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence, daysSince } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
-import { $, A, ICON, openModal, closeModal, toast } from "../ui/dom.js";
+import { $, A, ICON, openModal, closeModal, openSheet, toast } from "../ui/dom.js";
 import { registerScreen } from "../app/shell.js";
 
 const nowHHMM=()=>{const n=new Date();return String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0");};
@@ -49,7 +49,9 @@ function render(){
   const mr=S.state.marriageRhythm||"weekly", dow=now.getDay();
   if(mr==="daily"||(mr==="weekly"&&dow===0)||(mr==="monthly"&&now.getDate()===1))alerts.push(`<span class="chip lit" onclick="A.go('us')">💛 ${mr==="daily"?"Daily words":mr==="weekly"?"Weekly check-in":"Monthly sit-down"} with ${esc(partnerName())}</span>`);
   const fa=fastAbstinence(now); if(fa&&fa.abstinence)alerts.push(`<span class="chip warn">🐟 ${esc(fa.label)}</span>`);
-  if(overdue)alerts.push(`<span class="chip warn" onclick="A.go('tasks')">${overdue} overdue task${overdue>1?"s":""}</span>`);
+  if(overdue)alerts.push(`<span class="chip warn" onclick="A.openUndone()">${overdue} overdue task${overdue>1?"s":""}</span>`);
+  const leftToday=mine.filter(x=>!x.done).length;
+  if(leftToday)alerts.push(`<span class="chip" onclick="A.openUndone()">${leftToday} still to do today</span>`);
 
   /* next */
   const next=tl.find(x=>!x.done&&x.t>=hhmm&&x.kind!=="task");
@@ -149,6 +151,52 @@ function row(x,isNow){
     <button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button>
   </div>`;
 }
+
+/* ---------------- what's still undone ----------------
+   The overdue chip used to drop you on the whole Tasks screen, projects and
+   finished work and all, and you had to go find the thing it was warning about.
+   This is only what is actually outstanding for you: what is late, then what is
+   left today. Ticking something off repaints the list in place, so the sheet
+   empties as you work rather than sending you back and forth. */
+function undonePane(){
+  const date=todayS(), me=S.user.uid;
+  const late=S.items
+    .filter(i=>i.kind==="task"&&!i.repeat&&!i.done&&i.due&&i.due<date&&mineOn(i,date))
+    .sort((a,b)=>a.due.localeCompare(b.due));
+  const today=todayTimeline("me")
+    .filter(x=>!x.done&&x.kind!=="event")
+    .filter(x=>x.kind!=="task"||(assigneeOn(x.tk,date)===me||assigneeOn(x.tk,date)==="together"));
+
+  const taskRow=(t,overdueBy)=>`<div class="row">
+    <button class="chk" onclick="A.undoneTick('${t.id}','${date}')" aria-label="Mark done">${ICON.check}</button>
+    <div class="grow"><div class="title">${esc(t.text)}</div><div class="kind">${overdueBy?esc(overdueBy)+" · ":""}${(w=>w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date)))}${repeatLabel(t)?" · "+repeatLabel(t):""}</div></div>
+    <button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button></div>`;
+
+  const rowFor=x=>x.kind==="practice"
+    ? `<div class="row"><button class="chk" onclick="A.undoneKeep('${x.p.id}')" aria-label="Mark kept">${ICON.check}</button>
+        <div class="grow"><div class="title">${esc(x.p.name)}</div><div class="kind">${fmtT(x.p.time)} · ${x.p.mins} min</div></div>
+        <div class="emoji">${x.p.emoji||"🙏"}</div></div>`
+    : taskRow(x.tk,"");
+
+  const nothing=!late.length&&!today.length;
+  return `<div class="reader" data-pane="undone">
+    <div class="eyebrow lit">${new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}</div>
+    <div class="r-title" style="font-size:30px">Still to do</div>
+    ${nothing?`<div class="r-note">Nothing outstanding. The whole day is kept — Deo gratias.</div>`:`<div class="r-note">${late.length?late.length+" late":""}${late.length&&today.length?" · ":""}${today.length?today.length+" left today":""}</div>`}
+    ${late.length?`<div class="sec-row" style="margin-top:24px"><h2 class="sec">Late</h2><span class="hint">${late.length}</span></div>
+      ${late.map(t=>taskRow(t,daysSince(t.due)+"d overdue")).join("")}`:""}
+    ${today.length?`<div class="sec-row" style="margin-top:24px"><h2 class="sec">Today</h2><span class="hint">${today.length}</span></div>
+      ${today.map(rowFor).join("")}`:""}
+    ${nothing?`<div class="amen" style="margin-top:28px"><button class="btn block" onclick="A.closeSheet()">Good</button></div>`:""}
+  </div>`;
+}
+/** Repaint the sheet in place, but only while it is the pane on screen. */
+function repaintUndone(){
+  if(document.querySelector('.sheet.open [data-pane="undone"]'))$("sheet-body").innerHTML=undonePane();
+}
+A.openUndone=()=>openSheet(undonePane(),{cls:"full"});
+A.undoneTick=(id,dateS)=>{ window.toggleTaskOn(id,dateS); setTimeout(repaintUndone,60); };
+A.undoneKeep=pid=>{ A.togglePractice(pid); setTimeout(repaintUndone,60); };
 
 A.setView=v=>{ S.view=v; render(); };
 A.toggleTaskOn=(id,dateS)=>{ window.toggleTaskOn(id,dateS); };
