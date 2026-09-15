@@ -22,14 +22,17 @@ export function loadReadings(force=false){
   if(!force&&S.liturgy.date===ds&&S.liturgy.error)return;   // one failure per day; the retry button forces
   loadingFor=ds;
   const ctl=new AbortController();
-  const bail=setTimeout(()=>ctl.abort(),9000);
+  const bail=setTimeout(()=>ctl.abort(),12000);
+  const attempt=(S.liturgy.date===ds?S.liturgy.attempts:0)||0;
   fetch("/.netlify/functions/readings?date="+ds,{signal:ctl.signal})
-    .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
-    .then(j=>{
-      if(j.error)throw new Error(j.error);
-      S.liturgy={date:ds,day:j.day||"",readings:j.readings||[],copyright:j.copyright||"",loaded:true};
+    .then(async r=>{ const j=await r.json().catch(()=>({})); if(!r.ok||j.error)throw new Error(j.reason||j.message||("The readings service answered "+r.status+".")); return j; })
+    .then(j=>{ S.liturgy={date:ds,day:j.day||"",readings:j.readings||[],copyright:j.copyright||"",loaded:true}; })
+    .catch(e=>{
+      const reason=e?.name==="AbortError"?"The readings service took too long to answer.":(e?.message||"Unknown error.");
+      S.liturgy={date:ds,loaded:false,error:true,reason,attempts:attempt+1};
+      /* The first miss of the day is usually a cold start; try once more on our own. */
+      if(attempt===0)setTimeout(()=>loadReadings(true),15000);
     })
-    .catch(()=>{ S.liturgy={date:ds,loaded:false,error:true}; })
     .finally(()=>{ clearTimeout(bail); loadingFor=null; renderAll(); });
 }
 A.retryReadings=()=>{ S.liturgy={}; loadReadings(true); renderAll(); };
@@ -77,7 +80,7 @@ function render(){
       ${refs.length
         ?refs.map(x=>`<div class="ref"><div class="l">${esc(x.label)}</div><div class="v">${esc(x.source)}</div></div>`).join("")
         :L.error
-          ?`<div class="empty">The readings didn't load. <button class="link" onclick="A.retryReadings()">Try again</button></div>`
+          ?`<div class="empty">The readings didn't load${L.reason?" — "+esc(L.reason):""}. <button class="link" onclick="A.retryReadings()">Try again</button></div>`
           :`<div class="ref skeleton"><div class="l">First Reading</div><div class="v">&nbsp;</div></div><div class="ref skeleton"><div class="l">Psalm</div><div class="v">&nbsp;</div></div><div class="ref skeleton"><div class="l">Gospel</div><div class="v">&nbsp;</div></div>`}
       <div class="ref-actions">
         ${refs.length?`<button class="btn sm" onclick="A.openReadings()">Read them</button>`:""}

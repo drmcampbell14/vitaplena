@@ -93,6 +93,14 @@ const json = (obj, status = 200, cache = "no-store") =>
     }
   });
 
+/** One plain line for the card: the most useful thing that went wrong. */
+function summarise(tried) {
+  const t = tried[0] || {};
+  if (!tried.length) return "No address answered.";
+  if (t.status === 0) return /Timeout|abort/i.test(t.snippet) ? "Universalis took too long to answer." : "Could not reach Universalis: " + t.snippet.trim();
+  return `Universalis answered ${t.status}.`;
+}
+
 export default async (req) => {
   if (req.method === "OPTIONS") return json({}, 204);
 
@@ -100,21 +108,35 @@ export default async (req) => {
   const date = (url.searchParams.get("date") || "").replace(/-/g, "");
   if (!/^\d{8}$/.test(date)) return json({ error: "bad_date", message: "Pass ?date=YYYYMMDD." }, 400);
 
-  let raw;
-  try {
-    const ctl = AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined;
-    const res = await fetch(`https://universalis.com/USA/${date}/jsonpmass.js`, {
-      signal: ctl,
-      headers: { "user-agent": "VitaPlena/5 (+https://vitaplena13.netlify.app)" }
-    });
-    if (!res.ok) return json({ error: "upstream", status: res.status }, 502);
-    raw = await res.text();
-  } catch (e) {
-    return json({ error: "upstream", message: String(e?.message || e) }, 502);
+  /* Two addresses: the US calendar, then the General Roman one if that fails.
+     A synchronous Netlify function is cut off at 10 seconds, so each try gets a
+     short leash rather than one long one. Whatever goes wrong is reported in
+     the JSON — status, a snippet of the reply, which address — so the card in
+     the app can show a reason instead of "didn't load", and Mitch can read it
+     to me. */
+  const sources = [`https://universalis.com/USA/${date}/jsonpmass.js`, `https://universalis.com/${date}/jsonpmass.js`];
+  const tried = [];
+  let out = null;
+  for (const src of sources) {
+    try {
+      const res = await fetch(src, {
+        signal: AbortSignal.timeout ? AbortSignal.timeout(3500) : undefined,
+        headers: {
+          "user-agent": "Mozilla/5.0 (compatible; VitaPlena/5; +https://vitaplena13.netlify.app)",
+          "accept": "*/*",
+          "referer": "https://universalis.com/"
+        }
+      });
+      const body = await res.text();
+      if (!res.ok) { tried.push({ src, status: res.status, snippet: body.slice(0, 120) }); continue; }
+      out = parseUniversalis(body, date);
+      if (out) { out.via = src.includes("/USA/") ? "USA" : "general"; break; }
+      tried.push({ src, status: res.status, snippet: "unparseable: " + body.slice(0, 120) });
+    } catch (e) {
+      tried.push({ src, status: 0, snippet: String(e?.name || "") + " " + String(e?.message || e) });
+    }
   }
-
-  const out = parseUniversalis(raw, date);
-  if (!out) return json({ error: "unparseable" }, 502);
+  if (!out) return json({ error: "upstream", reason: summarise(tried), tried }, 502);
 
   /* Today's readings never change once published, so let the edge hold them. */
   return json(out, 200, `public, max-age=${DAY}, s-maxage=${DAY}, stale-while-revalidate=${DAY}`);
