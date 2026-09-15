@@ -4,8 +4,9 @@
    Me is my practices, my tasks and events; Household is everyone's, with who has
    kept what. */
 import { S, esc, jsq, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, eventDoneOn, repeatLabel,
-  doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence, daysSince } from "../core/data.js";
+  doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence, daysSince, updItem } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
+import { scheduleTasks, toMin, toHHMM, DEFAULT_TASK_MINS } from "../core/schedule.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, openSheet, toast } from "../ui/dom.js";
 import { registerScreen } from "../app/shell.js";
@@ -21,9 +22,31 @@ export function todayTimeline(view=S.view){
   const items=[];
   (S.state.practices||[]).filter(p=>scheduledToday(p)).forEach(p=>items.push({t:p.time||"23:58",kind:"practice",p,done:dn.has(p.id)}));
   S.items.filter(i=>i.kind==="event"&&i.date===date&&(view==="house"||mineEv(i))).forEach(e=>items.push({t:e.time||"00:00",kind:"event",e,done:eventDoneOn(e)}));
-  S.items.filter(i=>i.kind==="task"&&taskOccursOn(i,date)&&(view==="house"||mineTask(i))).forEach(tk=>{
-    const w=tk.whenHint; const t=w&&w.includes(":")?w:w==="morning"?"08:30":w==="afternoon"?"13:00":w==="evening"?"18:30":"23:59";
-    items.push({t,kind:"task",tk,done:taskDoneOn(tk,date)});
+  /* Tasks are placed into the free time between the fixed items, from now
+     forward (see core/schedule.js). A done task just sits where it was hinted;
+     an undone one that fits nowhere today goes to the "When there's a moment"
+     group rather than being pinned to a time nobody can keep. */
+  const hintTime=w=>w&&w.includes(":")?w:w==="morning"?"08:30":w==="afternoon"?"13:00":w==="evening"?"18:30":"23:59";
+  /* Which tasks belong to today: anything due or repeating today, anything
+     overdue (it is still outstanding), and — new — undated open tasks, which
+     are the natural fillers for free time. Undated ones are opportunistic: if
+     they don't fit they stay on the Tasks tab rather than crowding the day. */
+  const isMineOrHouse=i=>view==="house"||mineTask(i);
+  const dated=S.items.filter(i=>i.kind==="task"&&taskOccursOn(i,date)&&isMineOrHouse(i));
+  const overdue=S.items.filter(i=>i.kind==="task"&&!i.repeat&&!i.done&&i.due&&i.due<date&&isMineOrHouse(i));
+  const undated=S.items.filter(i=>i.kind==="task"&&!i.repeat&&!i.done&&!i.due&&isMineOrHouse(i));
+  const tasks=[...dated,...overdue,...undated];
+  const optional=new Set(undated.map(t=>t.id));
+  const busy=items.filter(x=>x.kind==="practice").map(x=>({start:x.p.time,end:toHHMM((toMin(x.p.time)??0)+(x.p.mins||10)),pad:false}))
+    .concat(items.filter(x=>x.kind==="event"&&x.e.time).map(x=>({start:x.e.time,end:x.e.endTime||toHHMM((toMin(x.e.time)??0)+60),pad:true})));
+  const undone=tasks.filter(t=>!taskDoneOn(t,date));
+  const plan=scheduleTasks({tasks:undone.map(t=>({id:t.id,mins:t.mins||DEFAULT_TASK_MINS,lock:t.lock||null,hint:t.whenHint||null,due:t.due||""})),busy,dayStart:S.state.wake||"07:00",now:nowHHMM()});
+  const slotOf=new Map(plan.placed.map(pl=>[pl.id,pl]));
+  tasks.forEach(tk=>{
+    const done=taskDoneOn(tk,date), slot=slotOf.get(tk.id);
+    if(done)items.push({t:hintTime(tk.whenHint),kind:"task",tk,done:true});
+    else if(slot)items.push({t:slot.start,kind:"task",tk,done:false,slot});
+    else if(!optional.has(tk.id))items.push({t:"23:59",kind:"task",tk,done:false,later:true});
   });
   return items.sort((a,b)=>a.t.localeCompare(b.t));
 }
@@ -59,7 +82,7 @@ function render(){
 
   /* groups */
   /** @type {[string, (x:any)=>boolean][]} */
-  const groups=[["Morning",x=>hourOf(x.t)<11],["The Day",x=>hourOf(x.t)>=11&&hourOf(x.t)<17],["Evening",x=>hourOf(x.t)>=17]];
+  const groups=[["Morning",x=>!x.later&&hourOf(x.t)<11],["The Day",x=>!x.later&&hourOf(x.t)>=11&&hourOf(x.t)<17],["Evening",x=>!x.later&&hourOf(x.t)>=17],["When there's a moment",x=>!!x.later]];
   let firstNow=next;
   const tlHtml=groups.map(([label,f])=>{
     const rows=tl.filter(f); if(!rows.length)return "";
@@ -142,12 +165,14 @@ function row(x,isNow){
       <span class="owner-tag ${tagCls(e)}">${esc(e.ownerInitials||"")}</span>
     </div>`;
   }
-  const t=x.tk;
-  return `<div class="tl-row ${x.done?"done":""}">
+  const t=x.tk, slot=x.slot;
+  const timeCell=slot?`<div class="tl-time ${slot.locked?"locked":""}"><b>${fmtT(slot.start).replace(/ (AM|PM)/,"")}</b>${fmtT(slot.start).slice(-2)}</div>`:`<div class="tl-time"></div>`;
+  return `<div class="tl-row ${x.done?"done":""} ${slot?.locked?"pinned":""}">
     <button class="chk ${x.done?"on":""}" onclick="A.toggleTaskOn('${t.id}','${date}')" aria-label="${x.done?"Done":"Mark done"}">${ICON.check}</button>
-    <div class="tl-time"></div>
-    <div class="tl-ico task"></div>
-    <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(t.text)}</div><div class="kind">${(w=>w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date)))}${t.rotate?.length>1?" · rotates":""}${repeatLabel(t)?" · "+repeatLabel(t):""}</div></div>
+    ${timeCell}
+    <div class="tl-ico task">${slot?.locked?"📌":""}</div>
+    <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(t.text)}</div><div class="kind">${t.mins||DEFAULT_TASK_MINS} min · ${(w=>w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date)))}${t.rotate?.length>1?" · rotates":""}${repeatLabel(t)?" · "+repeatLabel(t):""}${slot?.locked?" · locked":""}</div></div>
+    ${x.done?"":`<button class="editp" onclick="A.lockTask('${t.id}','${slot?slot.start:""}')" aria-label="${slot?.locked?"Unlock time":"Lock to a time"}" title="${slot?.locked?"Unlock":"Lock to this time"}">${ICON.pin}</button>`}
     <button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button>
   </div>`;
 }
@@ -199,6 +224,16 @@ A.undoneTick=(id,dateS)=>{ window.toggleTaskOn(id,dateS); setTimeout(repaintUndo
 A.undoneKeep=pid=>{ A.togglePractice(pid); setTimeout(repaintUndone,60); };
 
 A.setView=v=>{ S.view=v; render(); };
+/* Pin a task to an hour. The scheduler then treats it like an event: it does not
+   move, and other tasks go around it. Unlocking lets it flow again. */
+A.lockTask=(id,at)=>{
+  const t=S.items.find(i=>i.id===id); if(!t)return;
+  openModal(`<h3>${t.lock?"Locked to "+fmtT(t.lock):"Lock to a time"}</h3>
+    <p class="modal-p">${esc(t.text)} · ${t.mins||DEFAULT_TASK_MINS} min. A locked task keeps its hour; everything else is placed around it.</p>
+    <label class="f">Time</label><input id="m-lock-time" type="time" value="${t.lock||at||""}">
+    <div class="actions">${t.lock?`<button class="btn ghost" onclick="A.setLock('${id}',null)">Unlock</button>`:`<button class="btn ghost" onclick="A.closeModal()">Cancel</button>`}<button class="btn" onclick="A.setLock('${id}',$('m-lock-time').value)">Lock</button></div>`);
+};
+A.setLock=(id,val)=>{ const v=val&&/^\d\d:\d\d$/.test(val)?val:null; if(val&&!v)return toast("Pick a time"); updItem(id,{lock:v}); closeModal(); if(v)toast("Locked to "+fmtT(v)); };
 A.toggleTaskOn=(id,dateS)=>{ window.toggleTaskOn(id,dateS); };
 A.captureSend=async()=>{
   const inp=$("cap-in"); const text=inp.value.trim(); if(!text)return;

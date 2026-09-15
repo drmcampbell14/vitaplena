@@ -126,6 +126,8 @@ A.openTaskModal=(areaPre,duePre,editId)=>{
     <label class="f">For</label><select id="m-t-area" onchange="A.taskAreaChange()">${areaOpts}</select>
     <label class="f">Rotate weekly between</label><div class="chips" id="m-t-rot">${rotChips}</div><div class="hint" style="margin-top:6px">Pick two or more and the chore passes to the next person each week.</div>
     <label class="f">Project</label><select id="m-t-sec"></select>
+    <div class="two"><div><label class="f">Takes (minutes)</label><input id="m-t-mins" type="number" inputmode="numeric" min="5" step="5" value="${t?.mins||15}"></div><div><label class="f">Lock to a time</label><input id="m-t-lock" type="time" value="${t?.lock||""}"></div></div>
+    <div class="hint" style="margin-top:6px">Today places the task in a free gap of that length. Leave the time empty and it moves down the day until it's done; set one and it stays put.</div>
     <label class="f">Schedule</label>
     <div class="pills" id="m-t-mode" data-v="${mode}">${MODES.map(([v,l])=>`<button class="pill ${mode===v?"on":""}" data-m="${v}" onclick="A.taskMode('${v}')">${l}</button>`).join("")}</div>
     <div id="m-t-due-wrap" style="display:none"><label class="f">Date</label><input id="m-t-due" type="date" value="${(t&&t.due)||duePre||todayS()}"></div>
@@ -153,7 +155,8 @@ A.saveTaskModal=editId=>{
   if(rv==="every")repeat={type:"every",n:Math.max(1,+$("m-t-n").value||14),anchor:$("m-t-anchor").value||todayS()};
   if(rv==="monthly")repeat={type:"monthly",dom:Math.max(1,Math.min(31,+$("m-t-dom").value||1))};
   const prev=editId?S.items.find(i=>i.id===editId):null;
-  const data={kind:"task",text,area,sectionId,due,repeat,rotate:rotate.length>=2?rotate:null,doneDates:(prev&&prev.doneDates)||{},done:prev?!!prev.done:false};
+  const mins=Math.max(5,Math.round((+$("m-t-mins").value||15)/5)*5), lock=$("m-t-lock").value||null;
+  const data={kind:"task",text,area,sectionId,due,repeat,mins,lock,rotate:rotate.length>=2?rotate:null,doneDates:(prev&&prev.doneDates)||{},done:prev?!!prev.done:false};
   editId?updItem(editId,data):addItem(data); closeModal();
 };
 A.rmTask=id=>{ closeModal(); confirmModal("Delete this task?",()=>delItem(id)); };
