@@ -2,7 +2,7 @@
    God (your prayers and when the day begins) → Family (who's in the house, and
    one rhythm for the marriage) → The bells (sound and permission) → Enter.
    Writes state/main with merge, so it also works as "set up my rule again". */
-import { S, db, rid, esc, DEFAULT_PRACTICES } from "../core/data.js";
+import { S, bus, db, rid, esc, DEFAULT_PRACTICES } from "../core/data.js";
 import { doc, setDoc } from "firebase/firestore";
 import { $, A, ICON, toast, openSheet } from "../ui/dom.js";
 import { BELL } from "../core/bells.js";
@@ -28,9 +28,17 @@ let onDone=()=>{};
 export function startOnboarding({name,onDone:cb,existing=false}={}){
   onDone=cb||(()=>{});
   OB.step=0; OB.name=name||S.profile?.name||"";
+  /* Practices added in Pray are not in the seven built-ins above. They used to be
+     invisible here, and worse, commit() rebuilt the list from the built-ins alone
+     — so running "set up my rule" a second time silently deleted every one of
+     them, and reset any time or days you had edited on the built-ins. Now they
+     join the list as choices, and commit() keeps what you already have. */
+  Object.keys(OB.prayers).forEach(id=>{ if(OB.prayers[id].custom)delete OB.prayers[id]; });   // none carried over from a previous run
   if(existing){
     const cur=S.state.practices||[];
     Object.keys(OB.prayers).forEach(id=>{ OB.prayers[id].on=cur.some(p=>p.id===id||p.name===OB.prayers[id].name); });
+    cur.filter(p=>!OB.prayers[p.id]&&!Object.values(OB.prayers).some(b=>b.name===p.name))
+       .forEach(p=>{ OB.prayers[p.id]={name:p.name,emoji:p.emoji||"🙏",mins:p.mins||10,on:true,fixed:p.time,custom:true}; });
     OB.wake=S.state.wake||OB.wake;
     const c=(S.state.confession||{})[S.user.uid]||{}; if(c.cadence)OB.confession=String(c.cadence);
     OB.household=(S.state.famSections||[]).map(f=>f.name);
@@ -58,7 +66,7 @@ function god(){
   const rows=Object.entries(OB.prayers).map(([id,p])=>`
     <button class="choice ${p.on?"on":""}" onclick="A.obPrayer('${id}',this)">
       <span class="emoji">${p.emoji}</span>
-      <span><div class="c-name">${p.name}</div><div class="c-meta">${p.mins} min${p.fixed?" · "+fmt(p.fixed):""}</div></span>
+      <span><div class="c-name">${esc(p.name)}</div><div class="c-meta">${p.mins} min${p.fixed?" · "+fmt(p.fixed):""}${p.custom?" · yours":""}</div></span>
       <span class="c-check">${ICON.check}</span>
     </button>`).join("");
   return `${back()}
@@ -155,12 +163,20 @@ function commit(){
   const [wh,wm]=OB.wake.split(":").map(Number); const wakeMin=wh*60+(wm||0);
   const timeAt=mins=>{ let t=((wakeMin+mins)%1440+1440)%1440; return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); };
   const chosen=Object.entries(OB.prayers).filter(([,p])=>p.on);
-  const practices=chosen.map(([id,p])=>({id,name:p.name,emoji:p.emoji,time:p.fixed||timeAt(p.at||0),mins:p.mins,days:[0,1,2,3,4,5,6]}));
+  const cur=S.state.practices||[];
+  const practices=chosen.map(([id,p])=>{
+    /* An existing practice keeps its stored time, days, minutes and emoji — the
+       user may have tuned them in Pray, and those edits win over the wake offset. */
+    const have=cur.find(x=>x.id===id)||cur.find(x=>x.name===p.name);
+    return have||{id,name:p.name,emoji:p.emoji,time:p.fixed||timeAt(p.at||0),mins:p.mins,days:[0,1,2,3,4,5,6]};
+  }).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
   const patch={
     practices:practices.length?practices:DEFAULT_PRACTICES,
     confession:{[S.user.uid]:{cadence:Number(OB.confession)}},
     wake:OB.wake,marriageRhythm:OB.marriageRhythm
   };
   if(OB.household.length)patch.famSections=OB.household.map(n=>({id:rid(),name:n,emoji:"💛",notes:[]}));
+  /* Preview mode keeps every write in memory, like the rest of the app. */
+  if(S.demo){ Object.assign(S.state,patch,{confession:{...(S.state.confession||{}),...patch.confession}}); bus.render(); return; }
   setDoc(doc(db,"households",S.hid,"state","main"),patch,{merge:true}).catch(e=>toast(e.message));
 }
