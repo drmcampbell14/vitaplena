@@ -30,6 +30,37 @@ export function taskDoneOn(t,dateS){return t.repeat?!!((t.doneDates||{})[dateS])
    `done` mark set here survives the next pull. */
 export function eventDoneOn(e){ return !!e.done; }
 
+/* ---------------- bills ----------------
+   A bill is not a task: it has an amount, it is either monthly on a day of the
+   month or once on a date, and "paid" is tracked per month rather than once.
+   Keeping kind:"bill" separate means every task and event filter in the app
+   ignores bills without any extra work. */
+const lastDayOf=(y,m)=>new Date(y,m,0).getDate();      // m is 1-based
+const pad2=n=>String(n).padStart(2,"0");
+
+/** The day this bill falls due in a given month, clamped to short months. */
+export function billDueInMonth(b,ym){ const [y,m]=ym.split("-").map(Number); return `${ym}-${pad2(Math.min(+b.dueDom||1,lastDayOf(y,m)))}`; }
+
+/** Does this bill fall due on this date? */
+export function billDueOn(b,dateS){
+  if(b.kind!=="bill")return false;
+  if(b.dueDom)return billDueInMonth(b,dateS.slice(0,7))===dateS;
+  return !!b.due&&b.due===dateS;
+}
+/** The period a payment belongs to: "YYYY-MM" for a monthly bill, "once" otherwise. */
+export function billPeriod(b,dateS){ return b.dueDom?dateS.slice(0,7):"once"; }
+/** Has this bill been paid for the period containing this date? */
+export function billPaidOn(b,dateS){ return b.dueDom?!!((b.paidMonths||{})[dateS.slice(0,7)]):!!b.paid; }
+/** The next date this bill falls due on or after `fromS`, or null if it never will. */
+export function nextBillDate(b,fromS){
+  if(!b.dueDom)return b.due&&b.due>=fromS?b.due:null;
+  const [y,m]=fromS.slice(0,7).split("-").map(Number);
+  const here=billDueInMonth(b,fromS.slice(0,7));
+  if(here>=fromS)return here;
+  const ny=m===12?y+1:y, nm=m===12?1:m+1;
+  return billDueInMonth(b,`${ny}-${pad2(nm)}`);
+}
+
 /** Is this item crossed off on this date, whatever kind it is. */
 export function itemDoneOn(i,dateS){ return i.kind==="event"?eventDoneOn(i):taskDoneOn(i,dateS); }
 

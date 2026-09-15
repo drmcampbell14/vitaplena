@@ -31,7 +31,7 @@ function render(){
 
   $("page-tasks").innerHTML=`
     <div class="card">
-      <div class="sec-row"><h2 class="sec">Add a task</h2><span class="hint">${open} open for you</span></div>
+      <div class="sec-row"><h2 class="sec">Add a task</h2><button class="btn ghost sm" onclick="A.openBills()">Bills</button></div>
       <div class="addline" style="margin-top:0"><input id="qa-in" placeholder="Wash the dogs every 14 days on Friday" onkeydown="if(event.key==='Enter')A.quickAddParse()"><button class="iconbtn" onclick="A.quickAddParse()">${ICON.plus}</button></div>
       <div class="qa-preview" id="qa-preview"></div>
       <div class="hint" style="margin-top:8px">Say it plainly: "vacuum Tuesdays", "call the plumber tomorrow", "together: plan Advent". Or tell Beacon.</div>

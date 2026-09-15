@@ -7,6 +7,7 @@ import { S, esc, jsq, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, 
   doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence, daysSince, updItem } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
 import { scheduleTasks, toMin, toHHMM, DEFAULT_TASK_MINS, DAY_END, BUFFER_MINS } from "../core/schedule.js";
+import { billsCard } from "./bills.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, openSheet, toast } from "../ui/dom.js";
 import { registerScreen } from "../app/shell.js";
@@ -116,6 +117,7 @@ function render(){
       <div class="seg"><button class="${S.view==="me"?"on":""}" onclick="A.setView('me')">Me</button><button class="${S.view==="house"?"on":""}" onclick="A.setView('house')">Household</button></div>
     </div>
     ${tlHtml}
+    ${billsCard()}
     ${S.briefing?`<div class="card tint" style="margin-top:18px"><div class="eyebrow">The week ahead · ${new Date(S.briefing.weekOf+"T12:00").toLocaleDateString(undefined,{month:"long",day:"numeric"})}</div><div class="brief">${esc(S.briefing.text)}</div></div>`:""}
     <div class="two" style="margin-top:18px">
       <div class="card"><div class="sec-row"><div class="sec-sm">This week</div><button class="editp" onclick="A.addFocusModal()">${ICON.plus}</button></div>

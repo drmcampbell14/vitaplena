@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { taskOccursOn, taskDoneOn, eventDoneOn, itemDoneOn, scheduledToday, repeatLabel } from "../src/core/recurrence.js";
+import { taskOccursOn, taskDoneOn, eventDoneOn, itemDoneOn, scheduledToday, repeatLabel, billDueOn, billPaidOn, billPeriod, nextBillDate } from "../src/core/recurrence.js";
 
 /* Calendar facts used below: 2026-09-01 is a Tuesday, 2026-09-06 is a Sunday. */
 
@@ -98,5 +98,36 @@ describe("eventDoneOn() / itemDoneOn()", () => {
     expect(itemDoneOn(r, "2026-09-01")).toBe(true);
     expect(itemDoneOn(r, "2026-09-08")).toBe(false);
     expect(itemDoneOn(task({ due: "2026-09-01", done: true }), "2026-09-01")).toBe(true);
+  });
+});
+
+describe("bills", () => {
+  const monthly = { kind: "bill", text: "Mortgage", amount: 2100, dueDom: 31 };
+  const once = { kind: "bill", text: "Dentist", amount: 180, due: "2026-09-20" };
+
+  it("a monthly bill falls due on its day, clamped to short months", () => {
+    expect(billDueOn(monthly, "2026-08-31")).toBe(true);
+    expect(billDueOn(monthly, "2026-09-30")).toBe(true);
+    expect(billDueOn(monthly, "2026-09-29")).toBe(false);
+    expect(billDueOn(once, "2026-09-20")).toBe(true);
+    expect(billDueOn(once, "2026-09-21")).toBe(false);
+    expect(billDueOn({ kind: "task", dueDom: 1 }, "2026-09-01")).toBe(false);
+  });
+
+  it("paid is per month for a monthly bill, once for a one-off", () => {
+    expect(billPaidOn({ ...monthly, paidMonths: { "2026-09": true } }, "2026-09-30")).toBe(true);
+    expect(billPaidOn({ ...monthly, paidMonths: { "2026-09": true } }, "2026-10-31")).toBe(false);
+    expect(billPeriod(monthly, "2026-09-30")).toBe("2026-09");
+    expect(billPeriod(once, "2026-09-20")).toBe("once");
+    expect(billPaidOn({ ...once, paid: true }, "2026-09-20")).toBe(true);
+  });
+
+  it("nextBillDate rolls into the next month, and across the year", () => {
+    expect(nextBillDate(monthly, "2026-09-15")).toBe("2026-09-30");
+    expect(nextBillDate(monthly, "2026-09-30")).toBe("2026-09-30");
+    expect(nextBillDate(monthly, "2026-10-01")).toBe("2026-10-31");
+    expect(nextBillDate({ ...monthly, dueDom: 5 }, "2026-12-06")).toBe("2027-01-05");
+    expect(nextBillDate(once, "2026-09-15")).toBe("2026-09-20");
+    expect(nextBillDate(once, "2026-09-21")).toBeNull();
   });
 });

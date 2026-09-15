@@ -5,6 +5,7 @@ import { S, esc, fmtT, todayS, ymd, addD, SAINTS, DOWS, addItem, updItem, delIte
 import { $, A, ICON, openModal, closeModal, confirmModal, toast } from "../ui/dom.js";
 import { registerScreen } from "../app/shell.js";
 import { who, assigneeOn } from "../core/people.js";
+import { billRowsOn, billItemsOn } from "./bills.js";
 
 function eventsOn(dateS){
   return S.items.filter(i=>i.kind==="event"&&i.date===dateS&&(S.calFilter==="all"||i.owner===S.calFilter||i.area===S.calFilter))
@@ -29,7 +30,7 @@ function render(){
   const dayTasks=S.items.filter(t=>t.kind==="task"&&taskOccursOn(t,S.selDate)).filter(t=>S.calFilter==="all"||assigneeOn(t,S.selDate)===S.calFilter);
   const weekStart=addD(sd,-sd.getDay());
   const weekHtml=[0,1,2,3,4,5,6].map(i=>{ const d=addD(weekStart,i), ds=ymd(d); const evs=eventsOn(ds); const ts=S.items.filter(t=>t.kind==="task"&&taskOccursOn(t,ds)).filter(t=>S.calFilter==="all"||assigneeOn(t,ds)===S.calFilter); const sk=SAINTS[feastKey(d)];
-    return `<div class="wk-day ${ds===todayS()?"today":""}" onclick="A.selDay('${ds}')"><div class="wd"><b>${d.toLocaleDateString(undefined,{weekday:"long"})}</b><span>${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}${sk?" · ✝ "+esc(sk):""}</span></div>${evs.map(e=>`<div class="wk-item"><span class="t">${e.time?fmtT(e.time):"all day"}</span><span>${esc(e.title)}</span></div>`).join("")}${ts.map(t=>`<div class="wk-item"><span class="t">task</span><span class="${taskDoneOn(t,ds)?"done-text":""}">${esc(t.text)} <span class="muted">· ${esc(who(assigneeOn(t,ds)).name)}</span></span></div>`).join("")}${!evs.length&&!ts.length?'<div class="wk-item muted">—</div>':""}</div>`; }).join("");
+    return `<div class="wk-day ${ds===todayS()?"today":""}" onclick="A.selDay('${ds}')"><div class="wd"><b>${d.toLocaleDateString(undefined,{weekday:"long"})}</b><span>${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}${sk?" · ✝ "+esc(sk):""}</span></div>${evs.map(e=>`<div class="wk-item"><span class="t">${e.time?fmtT(e.time):"all day"}</span><span>${esc(e.title)}</span></div>`).join("")}${ts.map(t=>`<div class="wk-item"><span class="t">task</span><span class="${taskDoneOn(t,ds)?"done-text":""}">${esc(t.text)} <span class="muted">· ${esc(who(assigneeOn(t,ds)).name)}</span></span></div>`).join("")}${billItemsOn(ds)}${!evs.length&&!ts.length&&!billItemsOn(ds)?'<div class="wk-item muted">—</div>':""}</div>`; }).join("");
 
   $("page-calendar").innerHTML=`
     ${S.gcalConnected?"":`<div class="card tint gc-banner"><div class="grow"><div class="title" style="font-weight:600">Google Calendar</div><div class="hint">Pull your events in. Reconnects each session for now.</div></div><button class="btn sm" onclick="connectGcal()">Connect</button></div>`}
@@ -46,6 +47,7 @@ function render(){
     <div class="card">
       <div class="sec-row"><h2 class="sec">${S.selDate===todayS()?"Today":sd.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})}</h2><span class="dayfeast">${saint?"✝ "+esc(saint):c.name}</span></div>
       ${evs.map(e=>`<div class="row ${eventDoneOn(e)?"done":""}" onclick="A.openEventModal('${e.id}')" style="cursor:pointer"><button class="chk ${eventDoneOn(e)?"on":""}" onclick="event.stopPropagation();A.toggleEvent('${e.id}')" aria-label="${eventDoneOn(e)?"Done":"Mark done"}">${ICON.check}</button><div class="ev-time">${e.time?fmtT(e.time):"All day"}</div><div class="ev-dot ${tagCls(e)}"></div><div class="grow"><div class="title ${eventDoneOn(e)?"done-text":""}">${esc(e.title)}</div>${e.location?`<div class="sub">${esc(e.location)}</div>`:""}</div><span class="owner-tag ${tagCls(e)}">${e.source==="gcal"?"G":esc(e.ownerInitials||"")}</span></div>`).join("")||'<div class="empty">No events.</div>'}
+      ${billRowsOn(S.selDate)}
       <div class="addline"><input id="ev-in" placeholder="Add… 6:30pm Dinner with the Smiths" onkeydown="if(event.key==='Enter')A.quickAddEvent()"><button class="iconbtn" onclick="A.quickAddEvent()">${ICON.plus}</button></div>
       <button class="link" style="margin-top:10px" onclick="A.openEventModal()">More options</button>
     </div>
