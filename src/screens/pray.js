@@ -1,7 +1,7 @@
 /* Vita Plena — Pray: the liturgical day, the Mass readings, the rhythm, the prayer
    library with full-screen readers and guided flows (Rosary, Chaplet, Examen),
    confession, the plan of life, books, and the virtue of the month. */
-import { S, db, esc, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAINTS, EXAMEN_Q, DOWS, season,
+import { S, db, esc, $$, jsq, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAINTS, EXAMEN_Q, DOWS, season,
   saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, profOf, toast,
   feastKey, usccbUrl, mysteriesFor, fastAbstinence, daysSince } from "../core/data.js";
 import { PRAYERS, findPrayer, prayerById, rosarySteps, chapletSteps, examenSteps } from "../content/prayers.js";
@@ -114,7 +114,7 @@ function practiceRow(p,dn){
   const on=dn.has(p.id), pr=findPrayer(p.name);
   return `<div class="practice ${on?"done-p":""}">
     <div class="emoji">${p.emoji||"🙏"}</div>
-    <div class="grow"><div class="nm">${esc(p.name)}</div><div class="meta">${fmtT(p.time)} · ${p.mins} min · ${(p.days||[]).length===7?"daily":(p.days||[]).map(d=>DOWS[d]).join(" ")}${pr?` · <button class="link" style="font-size:12.5px" onclick="A.openPrayer('${esc(p.name)}')">pray →</button>`:""}</div></div>
+    <div class="grow"><div class="nm">${esc(p.name)}</div><div class="meta">${fmtT(p.time)} · ${p.mins} min · ${(p.days||[]).length===7?"daily":(p.days||[]).map(d=>DOWS[d]).join(" ")}${pr?` · <button class="link" style="font-size:12.5px" onclick="A.openPrayer('${jsq(p.name)}')">pray →</button>`:""}</div></div>
     <button class="editp" onclick="A.openPracticeModal('${p.id}')">${ICON.edit}</button>
     <button class="donebtn ${on?"on":""}" onclick="A.togglePractice('${p.id}')">${on?"Kept":"Done"}</button>
   </div>`;
@@ -224,7 +224,7 @@ A.openPracticeModal=pid=>{
 };
 A.savePractice=pid=>{
   const name=$("m-p-name").value.trim(); if(!name)return toast("Name the practice");
-  const days=[...document.querySelectorAll("#m-p-days button.on")].map(b=>+b.dataset.d);
+  const days=$$("#m-p-days button.on").map(b=>+b.dataset.d);
   const obj={id:pid||rid(),name,emoji:$("m-p-emoji").value.trim()||"🙏",time:$("m-p-time").value||"12:00",mins:+$("m-p-mins").value||10,days:days.length?days:[0,1,2,3,4,5,6]};
   const list=S.state.practices||[];
   saveKey("practices",pid?list.map(p=>p.id===pid?obj:p):list.concat([obj]).sort((a,b)=>a.time.localeCompare(b.time)));
@@ -329,7 +329,7 @@ A.showBell=p=>{
   const pr=findPrayer(p.name);
   const b=$("bell");
   b.innerHTML=`<div><div class="bo-ico">🔔</div><div class="eyebrow" style="color:inherit;opacity:.8;margin-top:10px">The house rings</div><div class="bo-t">${esc(p.name)}</div><div class="bo-s">${fmtT(p.time)} · ${p.mins} min${pr?" · "+esc(pr.why):""}</div>
-    <div class="bo-btns">${pr?`<button class="btn paper block" onclick="A.hideBell();A.openPrayer('${esc(p.name)}')">Pray now</button>`:""}<button class="btn block" style="background:rgba(255,255,255,.18);color:inherit" onclick="A.hideBell();A.togglePractice('${p.id}')">Mark kept</button><button class="btn block" style="background:transparent;color:inherit;opacity:.8" onclick="A.hideBell()">Later</button></div></div>`;
+    <div class="bo-btns">${pr?`<button class="btn paper block" onclick="A.hideBell();A.openPrayer('${jsq(p.name)}')">Pray now</button>`:""}<button class="btn block" style="background:rgba(255,255,255,.18);color:inherit" onclick="A.hideBell();A.togglePractice('${p.id}')">Mark kept</button><button class="btn block" style="background:transparent;color:inherit;opacity:.8" onclick="A.hideBell()">Later</button></div></div>`;
   b.classList.add("on");
 };
 A.hideBell=()=>$("bell").classList.remove("on");

@@ -47,7 +47,8 @@ function paragraphs(v) {
     .split(/\n{2,}/).map((p) => p.replace(/\n/g, " ").trim()).filter(Boolean);
 }
 
-/** A reading as the app wants it: what it's called, where it's from, what it says. */
+/** A reading as the app wants it: what it's called, where it's from, what it says.
+    @returns {{source:string, heading:string, body:string[]}|null} */
 function reading(v) {
   if (!v) return null;
   const source = line(typeof v === "object" ? v.source : "");
@@ -69,13 +70,13 @@ export function parseUniversalis(raw, date) {
   return {
     date,
     day: line(u.day),
-    readings: [
+    readings: /** @type {[string, ReturnType<typeof reading>][]} */ ([
       ["First Reading", reading(u.Mass_R1)],
       ["Responsorial Psalm", reading(u.Mass_Ps)],
       ["Second Reading", reading(u.Mass_R2)],
       ["Gospel Acclamation", reading(u.Mass_GA)],
       ["Gospel", reading(u.Mass_G)]
-    ].filter(([, r]) => r).map(([label, r]) => ({ label, ...r })),
+    ]).flatMap(([label, r]) => (r ? [{ label, source: r.source, heading: r.heading, body: r.body }] : [])),
     copyright: line(u.copyright)
   };
 }

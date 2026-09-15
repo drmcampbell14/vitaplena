@@ -1,5 +1,7 @@
 # Vita Plena — continuous integration
-# Runs on every push and pull request: install, unit tests, production build.
+# Runs on every push and pull request: install, typecheck, unit tests, production build.
+# checkJs is on in jsconfig.json, so the typecheck is the thing that catches a bad
+# property or a wrong argument before it ships.
 # A red run here means the change is not deployable; Netlify builds the same way.
 name: CI
 
@@ -17,5 +19,6 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build

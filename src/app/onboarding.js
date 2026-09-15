@@ -24,6 +24,7 @@ const OB={
 const STEPS=["god","family","bells","done"];
 let onDone=()=>{};
 
+/** @param {{existing?:boolean, name?:string, onDone?:()=>void}} [opts] */
 export function startOnboarding({name,onDone:cb,existing=false}={}){
   onDone=cb||(()=>{});
   OB.step=0; OB.name=name||S.profile?.name||"";

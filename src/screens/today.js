@@ -3,7 +3,7 @@
    kept ring → focus and countdowns. A Me / Household switch filters the agenda:
    Me is my practices, my tasks and events; Household is everyone's, with who has
    kept what. */
-import { S, esc, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, eventDoneOn, repeatLabel,
+import { S, esc, jsq, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, eventDoneOn, repeatLabel,
   doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence, daysSince } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
@@ -56,6 +56,7 @@ function render(){
   const nextHtml=next?nextCard(next):(tl.length?`<div class="card tint"><div class="eyebrow">The day</div><div class="disp" style="font-size:22px;margin-top:4px">${tl.every(x=>x.done||x.kind==="event")?"The rhythm is kept today. Deo gratias.":"Nothing more is scheduled. A quiet evening."}</div></div>`:`<div class="card tint"><div class="eyebrow">Your rule</div><div class="disp" style="font-size:22px;margin-top:4px">No practices yet. Set up your rule from the menu.</div></div>`);
 
   /* groups */
+  /** @type {[string, (x:any)=>boolean][]} */
   const groups=[["Morning",x=>hourOf(x.t)<11],["The Day",x=>hourOf(x.t)>=11&&hourOf(x.t)<17],["Evening",x=>hourOf(x.t)>=17]];
   let firstNow=next;
   const tlHtml=groups.map(([label,f])=>{
@@ -94,7 +95,7 @@ function render(){
         ${focus.map(f=>`<div class="row"><button class="chk ${f.done?"on":""}" onclick="A.toggleFocus('${f.id}')">${ICON.check}</button><div class="grow title ${f.done?"done-text":""}" style="font-size:15px">${esc(f.text)}</div><button class="x" onclick="A.rmFocus('${f.id}')">×</button></div>`).join("")||'<div class="empty">One focus for the week.</div>'}
       </div>
       <div class="card"><div class="sec-row"><div class="sec-sm">Counting toward</div><button class="editp" onclick="A.openCountdownModal()">${ICON.plus}</button></div>
-        ${cds.map(c=>{const d=Math.ceil((new Date(c.date+"T12:00")-now)/864e5);return `<div class="row"><div class="grow"><div class="title" style="font-size:15px">${esc(c.label)}</div><div class="sub">${new Date(c.date+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div></div><div class="disp num" style="font-size:24px">${d>=0?d+"d":"past"}</div></div>`;}).join("")||'<div class="empty">A feast, a trip, a due date.</div>'}
+        ${cds.map(c=>{const d=Math.ceil((new Date(c.date+"T12:00").getTime()-now.getTime())/864e5);return `<div class="row"><div class="grow"><div class="title" style="font-size:15px">${esc(c.label)}</div><div class="sub">${new Date(c.date+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div></div><div class="disp num" style="font-size:24px">${d>=0?d+"d":"past"}</div></div>`;}).join("")||'<div class="empty">A feast, a trip, a due date.</div>'}
       </div>
     </div>
     <div class="verse-foot">“${esc(q[0])}”<cite>${esc(q[1])}</cite></div>`;
@@ -106,7 +107,7 @@ function nextCard(x){
     return `<div class="card lit next">
       <div class="nx-time">${fmtT(x.p.time).replace(/ (AM|PM)/,"")}<small>${fmtT(x.p.time).slice(-2)} · the house rings</small></div>
       <div class="grow"><div class="nx-title">${esc(x.p.name)}</div><div class="nx-sub">${x.p.mins} min${pr?" · "+esc(pr.why):""}</div></div>
-      <button class="btn paper sm" onclick="${pr?`A.openPrayer('${esc(x.p.name)}')`:`A.togglePractice('${x.p.id}')`}">${pr?"Pray":"Kept"}</button>
+      <button class="btn paper sm" onclick="${pr?`A.openPrayer('${jsq(x.p.name)}')`:`A.togglePractice('${x.p.id}')`}">${pr?"Pray":"Kept"}</button>
     </div>`;
   }
   return `<div class="card lit next">
@@ -125,7 +126,7 @@ function row(x,isNow){
       <button class="chk ${x.done?"on":""}" onclick="A.togglePractice('${p.id}')" aria-label="${x.done?"Kept":"Mark kept"}">${ICON.check}</button>
       <div class="tl-time"><b>${fmtT(p.time).replace(/ (AM|PM)/,"")}</b>${fmtT(p.time).slice(-2)}</div>
       <div class="tl-ico pr">${p.emoji||"🙏"}</div>
-      <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(p.name)}</div><div class="kind">${p.mins} min${pr?` · <button class="link" style="font-size:12.5px" onclick="A.openPrayer('${esc(p.name)}')">pray →</button>`:""}${avs}</div></div>
+      <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(p.name)}</div><div class="kind">${p.mins} min${pr?` · <button class="link" style="font-size:12.5px" onclick="A.openPrayer('${jsq(p.name)}')">pray →</button>`:""}${avs}</div></div>
     </div>`;
   }
   if(x.kind==="event"){

@@ -6,7 +6,7 @@
 
 /* Bumped on every release. A new name means every old cache is deleted on activate,
    so a device can never be stuck serving a previous build's shell. */
-const VERSION = "vp-shell-v3";
+const VERSION = "vp-shell-v4";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -20,17 +20,25 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-const NEVER_CACHE = [
-  "googleapis.com", "gstatic.com", "firebaseapp.com", "firebase", "google.com",
-  "universalis.com", "/.netlify/functions/", "anthropic.com", "netlify.app/.netlify"
+/* Hosts we always go to the network for. These are matched against the URL's
+   HOST, never the whole URL: the bare substring "firebase" used to match our own
+   built chunk at /assets/firebase-<hash>.js — the largest and most essential file
+   in the app — so it was excluded from the shell cache, refetched on every load,
+   and missing offline, which meant the app could not boot with no signal at all. */
+const NEVER_CACHE_HOSTS = [
+  "googleapis.com", "gstatic.com", "firebaseapp.com", "firebaseio.com",
+  "google.com", "universalis.com", "anthropic.com"
 ];
+/* Same-origin paths that must never be served from cache. */
+const NEVER_CACHE_PATHS = ["/.netlify/functions/"];
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (NEVER_CACHE.some((s) => req.url.includes(s))) return;
-  if (url.origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) return;                       // third parties handle themselves
+  if (NEVER_CACHE_HOSTS.some((h) => url.hostname.endsWith(h))) return;
+  if (NEVER_CACHE_PATHS.some((p) => url.pathname.startsWith(p))) return;
 
   // Navigations: network first (fresh deploys win), cached index as the offline fallback.
   if (req.mode === "navigate") {

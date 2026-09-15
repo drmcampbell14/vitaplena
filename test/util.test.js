@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { todayS, fmtT, fmtMins, ordinal, esc, money, uid6, rid, DOWS, unentity, plain, daysBetween, daysSince } from "../src/core/util.js";
+import { todayS, fmtT, fmtMins, ordinal, esc, money, uid6, rid, DOWS, unentity, plain, daysBetween, daysSince, jsq } from "../src/core/util.js";
 
 /* These helpers are tiny, but util.js is imported by nearly everything, so a broken
    import here takes the whole app down at load. todayS() in particular crosses into
@@ -104,5 +104,50 @@ describe("daysBetween() / daysSince()", () => {
   it("junk dates count as zero rather than NaN on the screen", () => {
     expect(daysBetween("", "2026-09-10")).toBe(0);
     expect(daysBetween("not-a-date", "2026-09-10")).toBe(0);
+  });
+});
+
+describe("jsq() — strings inside inline handlers", () => {
+  /* The bug this guards: esc() is for HTML *text*. Inside onclick="A.f('…')" it
+     turns an apostrophe into &#39;, the HTML parser turns that back into a bare '
+     before the JS is parsed, and the call dies with a SyntaxError — the button
+     silently does nothing. Beacon's "What's on tomorrow?" chip was dead this way. */
+
+  /** What the browser hands the JS engine for an onclick attribute built with jsq. */
+  const throughParser = (value) =>
+    `A.f('${jsq(value)}')`
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+
+  const callWith = (value) =>
+    new Function("let v; const A = { f: (x) => (v = x) };" + throughParser(value) + "; return v")();
+
+  it("survives the apostrophes that used to break the call", () => {
+    expect(callWith("Mom's Rosary")).toBe("Mom's Rosary");
+    expect(callWith("What's on tomorrow?")).toBe("What's on tomorrow?");
+    expect(callWith("O'Brien")).toBe("O'Brien");
+  });
+
+  it("survives quotes, ampersands and backslashes", () => {
+    expect(callWith('say "hi" & bye')).toBe('say "hi" & bye');
+    expect(callWith("a\\b")).toBe("a\\b");
+    expect(callWith("100% & <tags>")).toBe("100% & <tags>");
+  });
+
+  it("flattens line breaks, which are a syntax error inside a JS string", () => {
+    expect(callWith("one\ntwo")).toBe("one two");
+    expect(callWith("one\r\ntwo")).toBe("one two");
+  });
+
+  it("cannot break out of the attribute or the string", () => {
+    expect(callWith("'); alert(1); ('")).toBe("'); alert(1); ('");
+    expect(jsq('" onmouseover="alert(1)')).not.toContain('"');
+    expect(callWith("</script><img src=x onerror=alert(1)>")).toBe("</script><img src=x onerror=alert(1)>");
+  });
+
+  it("handles nothing at all", () => {
+    expect(jsq(null)).toBe("");
+    expect(jsq(undefined)).toBe("");
+    expect(callWith("")).toBe("");
   });
 });

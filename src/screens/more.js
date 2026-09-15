@@ -1,7 +1,7 @@
 /* Vita Plena — the menu, Settings, and the "More" modules (Meals, Finances,
    Family, Notes). Modules are off by default for new households and switched on
    in Settings; existing households keep whatever they had. */
-import { S, db, auth, esc, rid, money, todayS, ymd, saveKey, saveField, addItem, updItem, delItem, isMine, profOf, debounce } from "../core/data.js";
+import { S, db, auth, esc, $$, jsq, rid, money, todayS, ymd, saveKey, saveField, addItem, updItem, delItem, isMine, profOf, debounce } from "../core/data.js";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { callFn } from "../lib/api.js";
@@ -53,7 +53,7 @@ function settings(){
   const members=S.house.members||[];
   const sub=S.house.subscription;
   let plan="Founders' household · no subscription needed";
-  if(sub){ if(sub.status==="trial"){ const left=Math.ceil((new Date(sub.trialEndsAt+"T12:00")-new Date())/864e5); plan=`Free trial · ${left>0?left+" days left":"ended"} · Beacon ${QUOTA_TRIAL} messages a day`; } else if(sub.status==="active")plan="Family plan · active"; else if(sub.status==="lapsed")plan="Subscription lapsed · Beacon is resting"; }
+  if(sub){ if(sub.status==="trial"){ const left=Math.ceil((new Date(sub.trialEndsAt+"T12:00").getTime()-Date.now())/864e5); plan=`Free trial · ${left>0?left+" days left":"ended"} · Beacon ${QUOTA_TRIAL} messages a day`; } else if(sub.status==="active")plan="Family plan · active"; else if(sub.status==="lapsed")plan="Subscription lapsed · Beacon is resting"; }
   return `
     <div class="card"><div class="sec-row"><h2 class="sec">You</h2></div>
       <label class="f">Name</label><input id="set-name" value="${esc(S.profile?.name||"")}">
@@ -80,7 +80,7 @@ function settings(){
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div class="code">${esc(S.house.code||"······")}</div><button class="btn ghost sm" onclick="A.copyInvite()">Copy</button>${isOwner?`<button class="btn ghost sm" onclick="A.regenCode()">New code</button>`:""}</div>
       <div class="hint" style="margin-top:6px">Text it to your spouse. They tap Join household and enter it.</div>
       <label class="f">Members</label>
-      ${members.map(u=>{const p=profOf(u);return `<div class="member-row"><div class="big-av">${esc(p.initials)}</div><div class="grow"><div class="title">${esc(p.name)}${u===me?" (you)":""}</div><div class="sub">${u===owner?"Owner":"Member"}</div></div>${isOwner&&u!==me?`<button class="btn ghost sm" onclick="A.transferOwner('${u}','${esc(p.name)}')">Make owner</button><button class="x" onclick="A.removeMember('${u}','${esc(p.name)}')">×</button>`:""}</div>`;}).join("")}
+      ${members.map(u=>{const p=profOf(u);return `<div class="member-row"><div class="big-av">${esc(p.initials)}</div><div class="grow"><div class="title">${esc(p.name)}${u===me?" (you)":""}</div><div class="sub">${u===owner?"Owner":"Member"}</div></div>${isOwner&&u!==me?`<button class="btn ghost sm" onclick="A.transferOwner('${u}','${jsq(p.name)}')">Make owner</button><button class="x" onclick="A.removeMember('${u}','${jsq(p.name)}')">×</button>`:""}</div>`;}).join("")}
       <div class="chips" style="margin-top:14px">${!isOwner||members.length===1?`<button class="chip" onclick="A.leaveHousehold()">Leave household</button>`:""}${isOwner?`<button class="chip warn" onclick="A.deleteHousehold()">Delete household</button>`:""}</div>
     </div>
 
@@ -131,7 +131,7 @@ A.hardRefresh=async()=>{
   toast("Clearing the offline copy…");
   try{ if("caches" in window){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch{ /* ignore */ }
   try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); } }catch{ /* ignore */ }
-  location.reload(true);
+  location.reload();
 };
 A.bellPerm=async()=>{ await BELL.requestPermission(); render(); };
 
@@ -164,7 +164,7 @@ A.deleteAccount=()=>confirmModal("Delete your account? Your sign-in and user rec
 /* feeds, briefing, export */
 A.getFeed=async()=>{
   const out=$("feed-out"); out.innerHTML='<div class="hint">Getting your link…</div>';
-  try{ const r=await callFn("ics"); out.innerHTML=`<div class="hint" style="margin-top:8px">On iPhone, tap the link and choose Subscribe. On a Mac: Calendar → File → New Calendar Subscription.</div><div class="addline"><input value="${esc(r.webcal)}" readonly onclick="this.select()"><button class="btn sm" onclick="navigator.clipboard?.writeText('${esc(r.webcal)}').then(()=>A.toast('Copied'))">Copy</button></div><a class="link" href="${esc(r.webcal)}">Open in Calendar</a>`; }
+  try{ const r=await callFn("ics"); out.innerHTML=`<div class="hint" style="margin-top:8px">On iPhone, tap the link and choose Subscribe. On a Mac: Calendar → File → New Calendar Subscription.</div><div class="addline"><input value="${esc(r.webcal)}" readonly onclick="this.select()"><button class="btn sm" onclick="navigator.clipboard?.writeText('${jsq(r.webcal)}').then(()=>A.toast('Copied'))">Copy</button></div><a class="link" href="${esc(r.webcal)}">Open in Calendar</a>`; }
   catch(e){ out.innerHTML=`<div class="hint" style="color:var(--warn)">${esc(e.error||"Couldn't get the link")}</div>`; }
 };
 A.toast=toast;
@@ -205,7 +205,7 @@ function meals(){
     ${(S.state.grocery||[]).map(g=>`<div class="row"><button class="chk ${g.done?"on":""}" onclick="A.toggleGrocery('${g.id}')">${ICON.check}</button><div class="grow title ${g.done?"done-text":""}">${esc(g.text)}</div><button class="x" onclick="A.rmGrocery('${g.id}')">×</button></div>`).join("")||'<div class="empty">Nothing on the list.</div>'}
     <div class="addline"><input id="grocery-in" placeholder="Add item" onkeydown="if(event.key==='Enter')A.addGrocery()"><button class="iconbtn" onclick="A.addGrocery()">${ICON.plus}</button></div></div>`;
 }
-const saveMeal=debounce(()=>{ const next={}; document.querySelectorAll(".meal-in").forEach(i=>next[i.dataset.k]=i.value); S.state.meals={...(S.state.meals||{}),[S.mealDay]:next}; saveField("meals."+S.mealDay,next); },600);
+const saveMeal=debounce(()=>{ const next={}; $$(".meal-in").forEach(i=>next[i.dataset.k]=i.value); S.state.meals={...(S.state.meals||{}),[S.mealDay]:next}; saveField("meals."+S.mealDay,next); },600);
 A.mealInput=()=>saveMeal();
 A.setMealDay=i=>{ S.mealDay=i; render(); };
 A.clearWeekMeals=()=>confirmModal("Clear the whole week's meals?",()=>saveKey("meals",{}));

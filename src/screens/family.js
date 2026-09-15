@@ -3,7 +3,7 @@
    kids (the device stays signed in as a parent). Today's date and liturgical day,
    the next bell, the rhythm with who has kept it, and a column per person with
    their chores, tap to check. Enter from the menu or with ?family=1. */
-import { S, esc, fmtT, todayS, taskOccursOn, taskDoneOn, doneSet, scheduledToday, profOf } from "../core/data.js";
+import { S, esc, jsq, fmtT, todayS, taskOccursOn, taskDoneOn, doneSet, scheduledToday, profOf } from "../core/data.js";
 import { who, assigneeOn, people } from "../core/people.js";
 import { liturgyLine, applyLiturgy, registerScreen } from "../app/shell.js";
 import { findPrayer } from "../content/prayers.js";
@@ -32,7 +32,7 @@ export function renderFamily() {
       <div class="fm-lit">${esc(line.main)}${line.sub ? " · " + esc(line.sub) : ""} · ${c.name}</div></div>
       <div class="fm-clock" id="fm-clock">${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</div>
     </div>
-    ${next ? `<div class="fm-next"><div class="fm-next-t">${fmtT(next.time)}</div><div><div class="fm-next-n">${esc(next.name)}</div><div class="fm-next-s">The house rings · ${next.mins} min${findPrayer(next.name) ? ` · <button class="fm-link" onclick="A.openPrayer('${esc(next.name)}')">pray now</button>` : ""}</div></div></div>`
+    ${next ? `<div class="fm-next"><div class="fm-next-t">${fmtT(next.time)}</div><div><div class="fm-next-n">${esc(next.name)}</div><div class="fm-next-s">The house rings · ${next.mins} min${findPrayer(next.name) ? ` · <button class="fm-link" onclick="A.openPrayer('${jsq(next.name)}')">pray now</button>` : ""}</div></div></div>`
            : `<div class="fm-next quiet"><div class="fm-next-n">${practices.length && practices.every((p) => dn.has(p.id)) ? "The rule is kept today. Deo gratias." : "No more bells today."}</div></div>`}
     <div class="fm-grid">
       <div class="fm-col rhythm">

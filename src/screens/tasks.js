@@ -1,6 +1,6 @@
 /* Vita Plena — Tasks: plain-English quick add, projects, assignee (member or
    together), repeats, due dates, per-date completion. */
-import { S, esc, rid, fmtT, todayS, ymd, addD, DOWS, saveField, addItem, updItem, delItem,
+import { S, esc, $$, rid, fmtT, todayS, ymd, addD, DOWS, saveField, addItem, updItem, delItem,
   taskDoneOn, repeatLabel, profOf, ordinal, ensureSection } from "../core/data.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, toast } from "../ui/dom.js";
 import { who, assigneeOn, assignees } from "../core/people.js";
@@ -107,7 +107,7 @@ A.quickAddEditFull=()=>{
   const p=window._qaPending; if(!p)return; $("qa-preview").classList.remove("show");
   A.openTaskModal(p.area,p.due||null);
   setTimeout(()=>{ const el=$("m-t-text"); if(el)el.value=p.text;
-    if(p.repeat){ A.taskMode(p.repeat.type); if(p.repeat.type==="every")$("m-t-n").value=p.repeat.n; if(p.repeat.type==="monthly")$("m-t-dom").value=p.repeat.dom; if(p.repeat.type==="weekly")document.querySelectorAll("#m-t-days button").forEach(b=>b.classList.toggle("on",p.repeat.days.includes(+b.dataset.d))); }
+    if(p.repeat){ A.taskMode(p.repeat.type); if(p.repeat.type==="every")$("m-t-n").value=p.repeat.n; if(p.repeat.type==="monthly")$("m-t-dom").value=p.repeat.dom; if(p.repeat.type==="weekly")$$("#m-t-days button").forEach(b=>b.classList.toggle("on",p.repeat.days.includes(+b.dataset.d))); }
     else if(p.due){ A.taskMode("due"); $("m-t-due").value=p.due; } },30);
 };
 
@@ -135,7 +135,7 @@ A.openTaskModal=(areaPre,duePre,editId)=>{
     <div class="actions">${t?`<button class="btn ghost" onclick="A.rmTask('${editId}')">Delete</button>`:`<button class="btn ghost" onclick="A.closeModal()">Cancel</button>`}<button class="btn" onclick="A.saveTaskModal('${editId||""}')">${t?"Save":"Add"}</button></div>`);
   A.taskAreaChange(t?t.sectionId:null); A.taskMode(mode);
 };
-A.taskMode=v=>{ $("m-t-mode").dataset.v=v; document.querySelectorAll("#m-t-mode .pill").forEach(b=>b.classList.toggle("on",b.dataset.m===v)); $("m-t-due-wrap").style.display=v==="due"?"":"none"; $("m-t-days-wrap").style.display=v==="weekly"?"":"none"; $("m-t-n-wrap").style.display=v==="every"?"":"none"; $("m-t-dom-wrap").style.display=v==="monthly"?"":"none"; };
+A.taskMode=v=>{ $("m-t-mode").dataset.v=v; $$("#m-t-mode .pill").forEach(b=>b.classList.toggle("on",b.dataset.m===v)); $("m-t-due-wrap").style.display=v==="due"?"":"none"; $("m-t-days-wrap").style.display=v==="weekly"?"":"none"; $("m-t-n-wrap").style.display=v==="every"?"":"none"; $("m-t-dom-wrap").style.display=v==="monthly"?"":"none"; };
 A.taskAreaChange=selId=>{
   const secsByArea=S.state.taskSections||{}; const seen={}; const all=[];
   Object.keys(secsByArea).forEach(area=>(secsByArea[area]||[]).forEach(x=>{ const k=(x.name||"").toLowerCase().trim(); if(!seen[k]){seen[k]=true;all.push(x);} else if(selId&&x.id===selId)all.push(x); }));
@@ -144,12 +144,12 @@ A.taskAreaChange=selId=>{
 };
 A.saveTaskModal=editId=>{
   const text=$("m-t-text").value.trim(); if(!text)return toast("Name the task");
-  const rotate=[...document.querySelectorAll("#m-t-rot .chip.lit")].map(b=>b.dataset.k);
+  const rotate=$$("#m-t-rot .chip.lit").map(b=>b.dataset.k);
   const area=rotate.length>=2?rotate[0]:$("m-t-area").value; let sectionId=$("m-t-sec").value;
   if(sectionId==="__none"){ const secs=S.state.taskSections||{}; let gen=null; Object.keys(secs).forEach(a=>{const hit=(secs[a]||[]).find(x=>(x.name||"").toLowerCase()==="general");if(hit&&!gen)gen=hit;}); if(!gen){gen={id:rid(),name:"General",emoji:"📌"};saveField("taskSections.together",(secs.together||[]).concat([gen]));} sectionId=gen.id; }
   const rv=$("m-t-mode").dataset.v; let repeat=null,due="";
   if(rv==="due")due=$("m-t-due").value||todayS();
-  if(rv==="weekly"){ const days=[...document.querySelectorAll("#m-t-days button.on")].map(b=>+b.dataset.d); if(!days.length)return toast("Tap at least one day"); repeat={type:"weekly",days}; }
+  if(rv==="weekly"){ const days=$$("#m-t-days button.on").map(b=>+b.dataset.d); if(!days.length)return toast("Tap at least one day"); repeat={type:"weekly",days}; }
   if(rv==="every")repeat={type:"every",n:Math.max(1,+$("m-t-n").value||14),anchor:$("m-t-anchor").value||todayS()};
   if(rv==="monthly")repeat={type:"monthly",dom:Math.max(1,Math.min(31,+$("m-t-dom").value||1))};
   const prev=editId?S.items.find(i=>i.id===editId):null;

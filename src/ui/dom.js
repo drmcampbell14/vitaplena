@@ -7,10 +7,13 @@
 import { $, esc } from "../core/util.js";
 export { $, esc };
 
-/** Action registry. Screens assign: A.doThing = (...) => {}. */
+/** Action registry. Screens assign: A.doThing = (...) => {}. Deliberately an open
+    record — the whole point is that any screen can register any name onto it.
+    @type {Record<string, any>} */
 export const A = (window.A = window.A || {});
 
-/** Haptic tap where supported (Android, Capacitor); silently nothing elsewhere. */
+/** Haptic tap where supported (Android, Capacitor); silently nothing elsewhere.
+    @param {number|number[]} [pattern] */
 export function haptic(pattern=12){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch{ /* no-op */ } }
 
 /* ---------------- getting out of an overlay ----------------

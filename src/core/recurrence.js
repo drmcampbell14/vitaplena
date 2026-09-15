@@ -12,7 +12,7 @@ export function taskOccursOn(t,dateS){
   if(t.repeat){
     const d=new Date(dateS+"T12:00");
     if(t.repeat.type==="weekly")return (t.repeat.days||[]).includes(d.getDay());
-    if(t.repeat.type==="every"){const a=new Date((t.repeat.anchor||dateS)+"T12:00");const diff=Math.round((d-a)/864e5);return diff>=0&&diff%(Math.max(1,t.repeat.n||1))===0;}
+    if(t.repeat.type==="every"){const a=new Date((t.repeat.anchor||dateS)+"T12:00");const diff=Math.round((d.getTime()-a.getTime())/864e5);return diff>=0&&diff%(Math.max(1,t.repeat.n||1))===0;}
     if(t.repeat.type==="monthly"){
       const dom=Math.max(1,Math.min(31,t.repeat.dom||1));
       const lastDay=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();

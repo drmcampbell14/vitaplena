@@ -3,8 +3,28 @@
    only when called. */
 import { ymd } from "./liturgical.js";
 
+/** Element by id. Typed loose on purpose: callers reach for .value, .checked and
+    .disabled on inputs, and pinning this to HTMLElement drowns checkJs in noise.
+    @param {string} id @returns {any} */
 export const $=id=>document.getElementById(id);
 export const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* Inline handlers are the app's idiom (onclick="A.openPrayer('...')"). esc() is
+   wrong for the string *inside* those quotes: it turns ' into &#39;, and the HTML
+   parser decodes that back to a bare ' before the JS is ever parsed, so
+   A.openPrayer('Mom&#39;s Rosary') reaches the engine as A.openPrayer('Mom's
+   Rosary') and dies with a SyntaxError — the button silently does nothing.
+   jsq() escapes for the JS string first, then for the attribute, in that order. */
+export const jsq=s=>String(s??"")
+  .replace(/\\/g,"\\\\")              // backslash first, or we escape our own escapes
+  .replace(/'/g,"\\'")                // survives the HTML parse as \' — a real escaped quote
+  .replace(/[\r\n\u2028\u2029]+/g," ")  // a raw line break inside a JS string is a syntax error
+  .replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/** Every element matching a selector, as a plain array. Typed loose for the same
+    reason as $: callers read .dataset and .value off the results.
+    @param {string} sel @param {any} [root] @returns {any[]} */
+export const $$=(sel,root)=>[...(root||document).querySelectorAll(sel)];
+
 export const uid6=()=>Array.from({length:6},()=>"ABCDEFGHJKMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*31)]).join("");
 export const rid=()=>Math.random().toString(36).slice(2,10);
 export const money=n=>"$"+(+n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -17,8 +37,8 @@ export const todayS=()=>ymd(new Date());
    negative. Anchoring both ends to local noon makes the gap whole days, and
    leaves a DST shift as 23 or 25 hours, which rounds correctly. */
 export function daysBetween(fromYmd,toYmd){
-  const a=new Date(fromYmd+"T12:00"), b=new Date(toYmd+"T12:00");
-  if(isNaN(a)||isNaN(b))return 0;
+  const a=new Date(fromYmd+"T12:00").getTime(), b=new Date(toYmd+"T12:00").getTime();
+  if(Number.isNaN(a)||Number.isNaN(b))return 0;
   return Math.round((b-a)/864e5);
 }
 /** Whole days since a stored YYYY-MM-DD, as of today. Never negative for today. */

@@ -7,12 +7,18 @@
    The token is an HMAC of the household id with a server-side secret, so the feed
    URL is unguessable but needs no login (calendar apps can't sign in). Sharing
    the URL shares the calendar; regenerating is a Phase 3 follow-up. */
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { authenticate, db, gate, handle, json, serverSecret, HttpError } from "./_shared/admin.mjs";
 import { buildIcs } from "./_shared/ics.mjs";
 
 export function feedToken(hid, secret) {
   return createHmac("sha256", secret || "vita-plena").update(hid).digest("hex").slice(0, 32);
+}
+
+/** Constant-time token compare, so the response time can't be used to guess a feed token. */
+function sameToken(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && timingSafeEqual(x, y);
 }
 
 export default handle(async (req, headers) => {
@@ -28,7 +34,7 @@ export default handle(async (req, headers) => {
 
   const u = new URL(req.url);
   const hid = u.searchParams.get("h") || "", t = u.searchParams.get("t") || "";
-  if (!hid || !t || t !== feedToken(hid, serverSecret())) throw new HttpError(403, "This calendar link isn't valid");
+  if (!hid || !t || !sameToken(t, feedToken(hid, serverSecret()))) throw new HttpError(403, "This calendar link isn't valid");
 
   const fs = db();
   const houseSnap = await fs.doc(`households/${hid}`).get();
@@ -41,8 +47,10 @@ export default handle(async (req, headers) => {
   const to = new Date(now); to.setDate(to.getDate() + 120);
   const ymd = (d) => d.toISOString().slice(0, 10);
   const evSnap = await fs.collection(`households/${hid}/items`).where("kind", "==", "event").get();
-  const events = evSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => e.date >= ymd(from) && e.date <= ymd(to));
+  /** @type {any[]} */
+  const events = evSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const inRange = events.filter((e) => e.date >= ymd(from) && e.date <= ymd(to));
 
-  const body = buildIcs({ name: house.name || "Household", hid, practices, events, now });
+  const body = buildIcs({ name: house.name || "Household", hid, practices, events: inRange, now });
   return new Response(body, { status: 200, headers: { "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "private, max-age=900", "Content-Disposition": 'inline; filename="vita-plena.ics"' } });
 });

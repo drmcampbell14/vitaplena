@@ -3,7 +3,7 @@
    sheet (conversation). Every message carries a state snapshot; the server
    verifies the caller's ID token, calls Claude, and returns { say, actions }.
    Actions are applied here, directly to the household, and confirmed with chips. */
-import { S, esc, rid, fmtT, todayS, ymd, addD, saveField, addItem, updItem, delItem, ensureSection, partnerName, profOf, db, auth } from "../core/data.js";
+import { S, esc, jsq, rid, fmtT, todayS, ymd, addD, saveField, addItem, updItem, delItem, ensureSection, partnerName, profOf, db, auth } from "../core/data.js";
 import { syncGcal } from "../lib/gcal.js";
 import { doc, updateDoc } from "firebase/firestore";
 import { $, A, ICON, openSheet, toast, haptic } from "../ui/dom.js";
@@ -72,7 +72,7 @@ A.openBeacon=()=>{
   openSheet(`<div class="beacon">
     <div class="b-head"><div class="iconbtn lit" style="width:34px;height:34px">${ICON.beacon}</div><div><div class="b-name">${BEACON_NAME}</div><div class="hint">Runs the house from plain English</div></div></div>
     <div class="b-log" id="b-log"></div>
-    <div class="suggest">${SUGGEST.map(s=>`<span class="chip" onclick="A.beaconSuggest('${esc(s)}')">${esc(s)}</span>`).join("")}</div>
+    <div class="suggest">${SUGGEST.map(s=>`<span class="chip" onclick="A.beaconSuggest('${jsq(s)}')">${esc(s)}</span>`).join("")}</div>
     <div class="b-in"><input id="b-in" placeholder="Tell ${BEACON_NAME}…" onkeydown="if(event.key==='Enter')A.beaconSubmit()" autocomplete="off"><button class="iconbtn ghost" id="b-mic" onclick="A.beaconMic('b-in','b-mic')" aria-label="Speak">${ICON.mic}</button><button class="iconbtn ghost" id="b-voice" onclick="A.beaconVoice()" title="${voiceOn?"Voice on":"Voice off"}">${voiceOn?"🔊":"🔇"}</button><button class="iconbtn lit" onclick="A.beaconSubmit()" aria-label="Send">${ICON.send}</button></div>
   </div>`,{cls:"full"});
   renderSheetLog(); setTimeout(()=>$("b-in")?.focus(),300);

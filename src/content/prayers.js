@@ -119,6 +119,7 @@ export const prayerById=id=>PRAYERS.find(p=>p.id===id)||null;
    mysteries depend on the day. */
 
 export function rosarySteps(mysteries){
+  /** @type {any[]} */
   const steps=[
     {title:"The Sign of the Cross",text:SIGN_OF_CROSS},
     {title:"The Apostles' Creed",text:APOSTLES_CREED},

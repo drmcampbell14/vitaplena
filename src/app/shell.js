@@ -1,7 +1,7 @@
 /* Vita Plena — app shell: liturgical colour, header, tab bar, page routing, render bus.
    Screens register a render function by tab id; renderAll() redraws every screen
    from the current state, which is cheap at this size and keeps things simple. */
-import { S, bus, esc, season, liturgicalColor, feastKey, SAINTS, fastAbstinence } from "../core/data.js";
+import { S, bus, esc, $$, season, liturgicalColor, feastKey, SAINTS, fastAbstinence } from "../core/data.js";
 import { $, A, ICON } from "../ui/dom.js";
 
 export const TABS=[
@@ -21,7 +21,7 @@ S.liturgy=S.liturgy||{};    // { day, readings, loaded } from Universalis (see s
 export function go(id){
   S.tab=id;
   document.querySelectorAll(".page").forEach(s=>s.classList.toggle("on",s.id==="page-"+id));
-  document.querySelectorAll("#tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.p===id));
+  $$("#tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.p===id));
   window.scrollTo({top:0});
   const r=screens[id]; if(r&&S.house)r();
 }
