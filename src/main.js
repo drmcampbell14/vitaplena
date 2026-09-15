@@ -19,6 +19,7 @@ import "./screens/pray.js";
 import "./screens/calendar.js";
 import "./screens/tasks.js";
 import "./screens/bills.js";
+import "./screens/scan.js";
 import "./screens/us.js";
 import "./screens/more.js";
 import "./companion/companion.js";

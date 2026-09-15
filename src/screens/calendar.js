@@ -49,7 +49,7 @@ function render(){
       ${evs.map(e=>`<div class="row ${eventDoneOn(e)?"done":""}" onclick="A.openEventModal('${e.id}')" style="cursor:pointer"><button class="chk ${eventDoneOn(e)?"on":""}" onclick="event.stopPropagation();A.toggleEvent('${e.id}')" aria-label="${eventDoneOn(e)?"Done":"Mark done"}">${ICON.check}</button><div class="ev-time">${e.time?fmtT(e.time):"All day"}</div><div class="ev-dot ${tagCls(e)}"></div><div class="grow"><div class="title ${eventDoneOn(e)?"done-text":""}">${esc(e.title)}</div>${e.location?`<div class="sub">${esc(e.location)}</div>`:""}</div><span class="owner-tag ${tagCls(e)}">${e.source==="gcal"?"G":esc(e.ownerInitials||"")}</span></div>`).join("")||'<div class="empty">No events.</div>'}
       ${billRowsOn(S.selDate)}
       <div class="addline"><input id="ev-in" placeholder="Add… 6:30pm Dinner with the Smiths" onkeydown="if(event.key==='Enter')A.quickAddEvent()"><button class="iconbtn" onclick="A.quickAddEvent()">${ICON.plus}</button></div>
-      <button class="link" style="margin-top:10px" onclick="A.openEventModal()">More options</button>
+      <div style="display:flex;gap:14px;align-items:center;margin-top:10px"><button class="link" onclick="A.openEventModal()">More options</button><button class="link" onclick="A.scanSchedule()">📷 Scan a schedule</button></div>
     </div>
     <div class="card">
       <div class="sec-row"><h2 class="sec">Tasks that day</h2></div>
