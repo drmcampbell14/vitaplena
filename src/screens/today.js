@@ -6,7 +6,7 @@
 import { S, esc, jsq, rid, fmtT, todayS, dayIdx, QUOTES, saveKey, taskOccursOn, taskDoneOn, eventDoneOn, repeatLabel,
   doneSet, scheduledToday, profOf, partnerName, tagCls, fastAbstinence, daysSince, updItem } from "../core/data.js";
 import { findPrayer } from "../content/prayers.js";
-import { scheduleTasks, toMin, toHHMM, DEFAULT_TASK_MINS } from "../core/schedule.js";
+import { scheduleTasks, toMin, toHHMM, DEFAULT_TASK_MINS, DAY_END, BUFFER_MINS } from "../core/schedule.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, openSheet, toast } from "../ui/dom.js";
 import { registerScreen } from "../app/shell.js";
@@ -40,7 +40,9 @@ export function todayTimeline(view=S.view){
   const busy=items.filter(x=>x.kind==="practice").map(x=>({start:x.p.time,end:toHHMM((toMin(x.p.time)??0)+(x.p.mins||10)),pad:false}))
     .concat(items.filter(x=>x.kind==="event"&&x.e.time).map(x=>({start:x.e.time,end:x.e.endTime||toHHMM((toMin(x.e.time)??0)+60),pad:true})));
   const undone=tasks.filter(t=>!taskDoneOn(t,date));
-  const plan=scheduleTasks({tasks:undone.map(t=>({id:t.id,mins:t.mins||DEFAULT_TASK_MINS,lock:t.lock||null,hint:t.whenHint||null,due:t.due||""})),busy,dayStart:S.state.wake||"07:00",now:nowHHMM()});
+  /* The buffer and the end of the day are household settings (More → Settings → The day). */
+  const plan=scheduleTasks({tasks:undone.map(t=>({id:t.id,mins:t.mins||DEFAULT_TASK_MINS,lock:t.lock||null,hint:t.whenHint||null,due:t.due||""})),busy,
+    dayStart:S.state.wake||"07:00",dayEnd:S.state.dayEnd||DAY_END,buffer:Number.isFinite(+S.state.travelBuffer)?+S.state.travelBuffer:BUFFER_MINS,now:nowHHMM()});
   const slotOf=new Map(plan.placed.map(pl=>[pl.id,pl]));
   tasks.forEach(tk=>{
     const done=taskDoneOn(tk,date), slot=slotOf.get(tk.id);

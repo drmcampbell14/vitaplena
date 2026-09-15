@@ -2,6 +2,7 @@
    Family, Notes). Modules are off by default for new households and switched on
    in Settings; existing households keep whatever they had. */
 import { S, db, auth, esc, $$, jsq, rid, money, todayS, ymd, saveKey, saveField, addItem, updItem, delItem, isMine, profOf, debounce } from "../core/data.js";
+import { DAY_END, BUFFER_MINS } from "../core/schedule.js";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { callFn } from "../lib/api.js";
@@ -68,6 +69,17 @@ function settings(){
       <div class="kv"><div class="k">Family mode<small>Big type for a tablet on the counter. Open with the menu, or add ?family=1 to the address.</small></div><button class="btn sm ghost" onclick="A.openFamilyMode()">Open</button></div>
     </div>
 
+    <div class="card"><div class="sec-row"><h2 class="sec">The day</h2></div>
+      <div class="hint">Today places tasks into the free time between your prayers and events. These set the edges of that day.</div>
+      <div class="two" style="margin-top:12px">
+        <div><label class="f">Begins</label><input type="time" value="${esc(S.state.wake||"07:00")}" onchange="A.setDay('wake',this.value)"></div>
+        <div><label class="f">Ends</label><input type="time" value="${esc(S.state.dayEnd||DAY_END)}" onchange="A.setDay('dayEnd',this.value)"></div>
+      </div>
+      <label class="f">Travel buffer</label>
+      <div class="pills">${[0,10,15,20,30,45].map(n=>`<button class="pill ${(Number.isFinite(+S.state.travelBuffer)?+S.state.travelBuffer:BUFFER_MINS)===n?"on":""}" onclick="A.setDay('travelBuffer',${n})">${n?n+" min":"None"}</button>`).join("")}</div>
+      <div class="hint" style="margin-top:6px">Kept free before and after every event, for getting there and back. Not applied around prayers — you're already home.</div>
+    </div>
+
     <div class="card"><div class="sec-row"><h2 class="sec">People</h2><button class="btn ghost sm" onclick="A.openPersonModal()">${ICON.plus} Person</button></div>
       <div class="hint">Children, a grandparent, the dog. No accounts; chores can be assigned to them and they appear in family mode.</div>
       ${people().map(p=>`<div class="row"><div class="emoji">${p.emoji||"💛"}</div><div class="grow"><div class="title">${esc(p.name)}</div><div class="sub">${esc(p.role||"")}</div></div><button class="editp" onclick="A.openPersonModal('${p.id}')">${ICON.edit}</button></div>`).join("")||'<div class="empty">Nobody added yet.</div>'}
@@ -124,6 +136,15 @@ A.saveHouse=()=>{ updateDoc(doc(db,"households",S.hid),{name:$("set-house").valu
 A.copyInvite=()=>{ navigator.clipboard?.writeText(S.house.code||"").then(()=>toast("Code copied")); };
 A.toggleModule=(k,v)=>saveField("modules."+k,v);
 A.bellSet=(k,v)=>{ BELL.settings={[k]:v}; render(); };
+/* The edges of the day, shared by the household: when it begins (also the wake
+   time the rule is built from), when it ends, and the travel buffer around events. */
+A.setDay=(k,v)=>{
+  if(k==="travelBuffer"){ const n=Math.max(0,Math.min(120,Math.round(+v)||0)); saveKey("travelBuffer",n); toast(n?n+" minutes around events":"No buffer around events"); return; }
+  if(!/^\d\d:\d\d$/.test(v))return toast("Pick a time");
+  if(k==="dayEnd"&&v<=(S.state.wake||"07:00"))return toast("The day has to end after it begins");
+  if(k==="wake"&&v>=(S.state.dayEnd||DAY_END))return toast("The day has to begin before it ends");
+  saveKey(k,v);
+};
 A.bellTest=()=>BELL.test();
 /** Clears the offline cache and the service worker, then reloads. The escape hatch
     when a device is holding an old copy of the app. */
