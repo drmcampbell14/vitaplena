@@ -57,15 +57,86 @@ function reading(v) {
   return { source, heading: line(typeof v === "object" ? v.heading : ""), body };
 }
 
+/* Universalis does not serve JSON. It serves a JavaScript expression, and the long
+   strings inside it are compressed: a single letter stands in for a phrase that
+   repeats, and the expansion rides along as a chain of calls on the literal.
+
+     "...the translatq&#x201c;Roman Missal&#x201d;k2010...".split("q").join("ion of ").split("k").join(" &#xa9; ")
+
+   The chain is order-dependent and it feeds itself: one replacement can introduce
+   the letter that a later replacement expands, and the same letter can appear twice
+   in one chain meaning different things both times. So the calls have to be applied
+   strictly left to right, exactly as a browser running the script would.
+
+   We fold those chains back down to plain string literals and hand the result to
+   JSON.parse. Running the payload instead — eval, new Function — would give a third
+   party arbitrary code execution inside our function, so we never do that. */
+
+/** Read the JavaScript string literal whose opening quote is at `s[i]`.
+    @param {string} s @param {number} i
+    @returns {[string, number]} the decoded text, and the index just past the closing quote. */
+function readLiteral(s, i) {
+  const quote = s[i];
+  let out = "";
+  for (i += 1; i < s.length; i++) {
+    const c = s[i];
+    if (c === quote) return [out, i + 1];
+    if (c !== "\\") { out += c; continue; }
+    const esc = s[i + 1];
+    if (esc === "u") { out += String.fromCharCode(parseInt(s.slice(i + 2, i + 6), 16)); i += 5; continue; }
+    out += ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f" })[esc] ?? esc;   // \\ and \" fall through as themselves
+    i += 1;
+  }
+  return [out, i];                                                          // unterminated: JSON.parse will reject it
+}
+
+/** Apply every `.split("a").join("b")` hanging off a literal, in order.
+    @param {string} s @param {string} value @param {number} i
+    @returns {[string, number]} the expanded text, and the index just past the last call. */
+function applyChain(s, value, i) {
+  for (;;) {
+    const split = /^\s*\.split\(\s*["']/.exec(s.slice(i));
+    if (!split) return [value, i];
+    let [sep, j] = readLiteral(s, i + split[0].length - 1);
+    const join = /^\s*\)\s*\.join\(\s*["']/.exec(s.slice(j));
+    if (!join) return [value, i];
+    let [rep, k] = readLiteral(s, j + join[0].length - 1);
+    const close = /^\s*\)/.exec(s.slice(k));
+    if (!close) return [value, i];
+    value = value.split(sep).join(rep);
+    i = k + close[0].length;
+  }
+}
+
+/** The payload with its substitution chains folded away, so it is plain JSON again.
+    Anything that is not a double-quoted literal is copied through untouched.
+    @param {string} s */
+function foldSubstitutions(s) {
+  let out = "";
+  for (let i = 0; i < s.length;) {
+    if (s[i] !== '"') { out += s[i]; i += 1; continue; }
+    let [value, j] = readLiteral(s, i);
+    [value, i] = applyChain(s, value, j);
+    out += JSON.stringify(value);
+  }
+  return out;
+}
+
 /** `universalisCallback({...})` to the shape the app renders, or null if it isn't that. */
 export function parseUniversalis(raw, date) {
-  const open = String(raw ?? "").indexOf("{"), close = String(raw ?? "").lastIndexOf("}");
+  const s = String(raw ?? "");
+  const open = s.indexOf("{"), close = s.lastIndexOf("}");
   if (open < 0 || close <= open) return null;
+  const body = s.slice(open, close + 1);
   let u;
   try {
-    u = JSON.parse(raw.slice(open, close + 1));
+    u = JSON.parse(body);                      // a plain payload, or a day with nothing to compress
   } catch {
-    return null;
+    try {
+      u = JSON.parse(foldSubstitutions(body)); // the usual case: substitution chains to fold first
+    } catch {
+      return null;
+    }
   }
   return {
     date,
