@@ -160,7 +160,7 @@ A.bellPerm=async()=>{ await BELL.requestPermission(); render(); };
 A.openPersonModal=id=>{
   const p=id?people().find(x=>x.id===id):null;
   openModal(`<h3>${p?"Edit person":"Add a person"}</h3>
-    <label class="f">Name</label><input id="m-pe-name" value="${p?esc(p.name):""}" placeholder="Anna">
+    <label class="f">Name</label><input id="m-pe-name" value="${p?esc(p.name):""}" placeholder="Their name">
     <label class="f">Emoji</label><input id="m-pe-emoji" value="${p?esc(p.emoji||""):""}" placeholder="👧" maxlength="4">
     <label class="f">Who</label><select id="m-pe-role">${[["child","Child"],["teen","Teen"],["adult","Adult"],["grandparent","Grandparent"],["pet","Pet"]].map(([v,l])=>`<option value="${v}" ${(p?.role||"child")===v?"selected":""}>${l}</option>`).join("")}</select>
     <div class="actions">${p?`<button class="btn ghost" onclick="A.rmPerson('${id}')">Remove</button>`:`<button class="btn ghost" onclick="A.closeModal()">Cancel</button>`}<button class="btn" onclick="A.savePerson('${id||""}')">${p?"Save":"Add"}</button></div>`);
@@ -276,7 +276,7 @@ function family(){
     ${(s.items||[]).map((it,ix)=>`<div class="row"><div class="grow"><div class="sub" style="text-transform:uppercase;letter-spacing:.06em">${esc(it.label)}</div><div class="title">${esc(it.value)}</div></div><button class="x" onclick="A.rmFamItem('${s.id}',${ix})">×</button></div>`).join("")||'<div class="empty">No details yet.</div>'}
     <div class="addline"><input id="faml-${s.id}" placeholder="Label (Vet)"><input id="famv-${s.id}" placeholder="Detail"><button class="iconbtn" onclick="A.addFamItem('${s.id}')">${ICON.plus}</button></div></div>`).join("")||'<div class="card"><div class="empty">Vet numbers, sizes, allergies, the things you look up twice a year.</div></div>'}`;
 }
-A.openFamModal=()=>openModal(`<h3>New section</h3><label class="f">Name</label><input id="m-fam-name" placeholder="Gordie · the baby"><label class="f">Emoji</label><input id="m-fam-emoji" placeholder="🐕" maxlength="4"><div class="actions"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><button class="btn" onclick="A.createFam()">Add</button></div>`);
+A.openFamModal=()=>openModal(`<h3>New section</h3><label class="f">Name</label><input id="m-fam-name" placeholder="The baby · the dog"><label class="f">Emoji</label><input id="m-fam-emoji" placeholder="🐕" maxlength="4"><div class="actions"><button class="btn ghost" onclick="A.closeModal()">Cancel</button><button class="btn" onclick="A.createFam()">Add</button></div>`);
 A.createFam=()=>{ const n=$("m-fam-name").value.trim(); if(!n)return; addItem({kind:"famsec",name:n,emoji:$("m-fam-emoji").value.trim()||"🐾",items:[]}); closeModal(); };
 A.rmFam=id=>confirmModal("Delete this section?",()=>delItem(id));
 A.addFamItem=id=>{ const s=S.items.find(i=>i.id===id); const l=$("faml-"+id).value.trim(), v=$("famv-"+id).value.trim(); if(!l&&!v)return; updItem(id,{items:(s.items||[]).concat([{label:l||"Note",value:v}])}); };

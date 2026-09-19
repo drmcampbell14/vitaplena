@@ -102,7 +102,7 @@ function render(){
       <div class="g2">${total?`${kept} of ${total} kept so far.`:"Nothing set for today yet."}</div>
     </div>
     <div class="capture">
-      <input id="cap-in" placeholder="Tell Beacon: rosary at 8, vacuum Tuesdays, Liz…" onkeydown="if(event.key==='Enter')A.captureSend()" autocomplete="off">
+      <input id="cap-in" placeholder="Tell Beacon: rosary at 8, vacuum Tuesdays…" onkeydown="if(event.key==='Enter')A.captureSend()" autocomplete="off">
       <button class="iconbtn ghost" id="cap-mic" onclick="A.beaconMic('cap-in','cap-mic')" aria-label="Speak">${ICON.mic}</button>
       <button class="iconbtn lit" onclick="A.captureSend()" aria-label="Send">${ICON.send}</button>
     </div>
@@ -175,8 +175,7 @@ function row(x,isNow){
     <button class="chk ${x.done?"on":""}" onclick="A.toggleTaskOn('${t.id}','${date}')" aria-label="${x.done?"Done":"Mark done"}">${ICON.check}</button>
     ${timeCell}
     <div class="tl-ico task">${slot?.locked?"📌":""}</div>
-    <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(t.text)}</div><div class="kind">${t.mins||DEFAULT_TASK_MINS} min · ${(w=>w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date)))}${t.rotate?.length>1?" · rotates":""}${repeatLabel(t)?" · "+repeatLabel(t):""}${slot?.locked?" · locked":""}</div></div>
-    ${x.done?"":`<button class="editp" onclick="A.lockTask('${t.id}','${slot?slot.start:""}')" aria-label="${slot?.locked?"Unlock time":"Lock to a time"}" title="${slot?.locked?"Unlock":"Lock to this time"}">${ICON.pin}</button>`}
+    <div class="grow"><div class="title ${x.done?"done-text":""}">${esc(t.text)}</div><div class="kind">${t.mins||DEFAULT_TASK_MINS} min${(w=>w.kind==="me"?"":w.kind==="together"?" · Together":" · For "+esc(w.name))(who(assigneeOn(t,date)))}${t.rotate?.length>1?" · rotates":""}${repeatLabel(t)?" · "+repeatLabel(t):""}${slot?.locked?" · locked":""}</div></div>
     <button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button>
   </div>`;
 }
@@ -198,7 +197,7 @@ function undonePane(){
 
   const taskRow=(t,overdueBy)=>`<div class="row">
     <button class="chk" onclick="A.undoneTick('${t.id}','${date}')" aria-label="Mark done">${ICON.check}</button>
-    <div class="grow"><div class="title">${esc(t.text)}</div><div class="kind">${overdueBy?esc(overdueBy)+" · ":""}${(w=>w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date)))}${repeatLabel(t)?" · "+repeatLabel(t):""}</div></div>
+    <div class="grow"><div class="title">${esc(t.text)}</div><div class="kind">${[overdueBy?esc(overdueBy):"",(w=>w.kind==="me"?"":w.kind==="together"?"Together":"For "+esc(w.name))(who(assigneeOn(t,date))),repeatLabel(t)].filter(Boolean).join(" · ")}</div></div>
     <button class="editp" onclick="A.openTaskModal(null,null,'${t.id}')">${ICON.edit}</button></div>`;
 
   const rowFor=x=>x.kind==="practice"
@@ -243,7 +242,7 @@ A.captureSend=async()=>{
   const inp=$("cap-in"); const text=inp.value.trim(); if(!text)return;
   inp.value=""; inp.placeholder="Beacon is ordering the day…";
   const reply=await A.beaconSend(text,{inline:true});
-  inp.placeholder="Tell Beacon: rosary at 8, vacuum Tuesdays, Liz…";
+  inp.placeholder="Tell Beacon: rosary at 8, vacuum Tuesdays…";
   if(reply){ S.lastBeacon=reply; render(); setTimeout(()=>{ if(S.lastBeacon===reply){S.lastBeacon=null;render();} },20000); }
 };
 A.addFocusModal=()=>openModal(`<h3>This week's focus</h3><label class="f">One thing</label><input id="m-focus" placeholder="e.g. Finish the case notes by Thursday">

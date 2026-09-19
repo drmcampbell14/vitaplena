@@ -101,7 +101,7 @@ function family(){
     <div class="card ob-card">
       <label class="f">Who is in your household?</label>
       <div class="chips" id="ob-fam">${chips||'<span class="hint">Nobody added yet</span>'}</div>
-      <div class="addline"><input id="ob-fam-in" placeholder="e.g. Liz, or Gordie" onkeydown="if(event.key==='Enter'){event.preventDefault();A.obAddFam()}"><button class="iconbtn" onclick="A.obAddFam()">${ICON.plus}</button></div>
+      <div class="addline"><input id="ob-fam-in" placeholder="e.g. Grandma, or the dog" onkeydown="if(event.key==='Enter'){event.preventDefault();A.obAddFam()}"><button class="iconbtn" onclick="A.obAddFam()">${ICON.plus}</button></div>
       <label class="f">One rhythm for your marriage</label>
       <div class="pills">${marr}</div>
     </div>
@@ -149,7 +149,7 @@ A.showTour=()=>{
   openSheet(`<div class="reader"><div class="eyebrow lit">Your first day</div><div class="r-title" style="font-size:30px">Three things to know</div>
     <div class="tour" style="margin-top:14px">
       <div class="tc"><div class="n">1 · Today</div><div class="t">The day, in order</div><div class="hint">Morning, the day, evening. Your prayers, your family's events, your tasks. Tap Done as you keep each one. Switch to Household to see everyone's.</div></div>
-      <div class="tc"><div class="n">2 · Beacon</div><div class="t">Just say it</div><div class="hint">The bar at the top of Today. "Rosary at 8." "Vacuum Tuesdays, Gordie." "Clear my afternoon." Beacon puts it where it belongs and tells you what it did.</div></div>
+      <div class="tc"><div class="n">2 · Beacon</div><div class="t">Just say it</div><div class="hint">The bar at the top of Today. "Rosary at 8." "Vacuum Tuesdays." "Clear my afternoon." Beacon puts it where it belongs and tells you what it did.</div></div>
       <div class="tc"><div class="n">3 · The bells</div><div class="t">The house rings</div><div class="hint">At each prayer's hour the app rings and the words are on the screen. Leave it open on a tablet in the kitchen and the whole house hears it. Quiet hours are in Settings.</div></div>
     </div>
     <button class="btn block" onclick="A.closeSheet()">Begin</button></div>`,{cls:"full"});

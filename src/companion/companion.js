@@ -12,7 +12,8 @@ import { who, assigneeOn, people, resolveName } from "../core/people.js";
 
 export const BEACON_NAME="Beacon";
 const ENDPOINT="/.netlify/functions/companion";
-const SUGGEST=["Plan my day","What's on tomorrow?","Rosary at 8 tonight","Clear my afternoon","Add a task for Liz","Move dinner to 6"];
+/* Suggestion chips. Built when the sheet opens, so the spouse's real name goes in. */
+const suggestions=()=>["Plan my day","What's on tomorrow?","Rosary at 8 tonight","Clear my afternoon",`Add a task for ${partnerName()}`,"Move dinner to 6"];
 
 /* ---------------- state snapshot ---------------- */
 function snapshot(){
@@ -72,7 +73,7 @@ A.openBeacon=()=>{
   openSheet(`<div class="beacon">
     <div class="b-head"><div class="iconbtn lit" style="width:34px;height:34px">${ICON.beacon}</div><div><div class="b-name">${BEACON_NAME}</div><div class="hint">Runs the house from plain English</div></div></div>
     <div class="b-log" id="b-log"></div>
-    <div class="suggest">${SUGGEST.map(s=>`<span class="chip" onclick="A.beaconSuggest('${jsq(s)}')">${esc(s)}</span>`).join("")}</div>
+    <div class="suggest">${suggestions().map(s=>`<span class="chip" onclick="A.beaconSuggest('${jsq(s)}')">${esc(s)}</span>`).join("")}</div>
     <div class="b-in"><input id="b-in" placeholder="Tell ${BEACON_NAME}…" onkeydown="if(event.key==='Enter')A.beaconSubmit()" autocomplete="off"><button class="iconbtn ghost" id="b-mic" onclick="A.beaconMic('b-in','b-mic')" aria-label="Speak">${ICON.mic}</button><button class="iconbtn ghost" id="b-voice" onclick="A.beaconVoice()" title="${voiceOn?"Voice on":"Voice off"}">${voiceOn?"🔊":"🔇"}</button><button class="iconbtn lit" onclick="A.beaconSubmit()" aria-label="Send">${ICON.send}</button></div>
   </div>`,{cls:"full"});
   renderSheetLog(); setTimeout(()=>$("b-in")?.focus(),300);

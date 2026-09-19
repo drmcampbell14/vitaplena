@@ -25,7 +25,7 @@ const AUTH_MESSAGES={
   "auth/operation-not-allowed":"Email sign-in isn't switched on for this app yet. Use Google for now.",
   "auth/network-request-failed":"No connection. Check your network and try again.",
   "auth/popup-closed-by-user":"The Google window was closed before finishing.",
-  "auth/unauthorized-domain":"Google sign-in isn't set up for this address yet. Use email, or ask Mitch to authorize the domain.",
+  "auth/unauthorized-domain":"Google sign-in isn't set up for this address yet. Use email and password instead.",
   "auth/account-exists-with-different-credential":"That email is already registered another way. Try the other sign-in option."
 };
 const authMessage=e=>AUTH_MESSAGES[e?.code]||"Something went wrong. Try again in a moment.";
@@ -39,6 +39,7 @@ let mode="signin";
 export function initGate(h){ handlers={...handlers,...h}; getRedirectResult(auth).catch(()=>{}); }
 
 export function showSignIn(){
+  gateChrome();
   $("loading").classList.add("hide");
   const g=$("gate"); g.classList.remove("hide");
   g.innerHTML=`
@@ -110,6 +111,7 @@ async function onGoogle(){
 
 /* ---------------- household: create or join ---------------- */
 export function showHouseholdSetup(user){
+  gateChrome();
   $("loading").classList.add("hide");
   const g=$("gate"); g.classList.remove("hide");
   const first=user.displayName?user.displayName.split(" ")[0]:"";
@@ -119,11 +121,11 @@ export function showHouseholdSetup(user){
     <div class="tag">Set up your household, or join your spouse's.</div>
     <div class="panel">
       <label class="f">Your name</label>
-      <input id="ob-name" placeholder="Mitch" autocomplete="given-name" value="${esc(first)}">
+      <input id="ob-name" placeholder="Your first name" autocomplete="given-name" value="${esc(first)}">
       <label class="f">Your initials</label>
       <input id="ob-initials" placeholder="MC" maxlength="3" style="text-transform:uppercase" value="${esc(initialsOf(user.displayName||""))}">
       <label class="f">Household name</label>
-      <input id="ob-house" placeholder="The Campbell Household">
+      <input id="ob-house" placeholder="e.g. The Smith Household">
       <button class="btn gold block" id="btn-create" style="margin-top:16px">Create our household</button>
       <div class="or" style="max-width:none">or join with a code</div>
       <input id="ob-code" placeholder="Invite code from your spouse" style="text-transform:uppercase;letter-spacing:.2em;text-align:center">
@@ -174,5 +176,8 @@ async function joinHousehold(){
   }catch(e){ err.textContent="Could not join: "+(e.message||e); $("btn-join").disabled=false; }
 }
 
+/** The sign-in screen is Marian navy; the browser chrome should be too, until the
+    shell mounts and applyLiturgy() paints it the colour of the day. */
+function gateChrome(){ const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute("content","#16386A"); }
 export function hideGate(){ $("gate").classList.add("hide"); }
 A.signOut=()=>signOut(auth).then(()=>location.reload());

@@ -35,7 +35,7 @@ if(isDemo()){
   if(params.get("more")){ S.tab="more"; S.moreKind=params.get("more"); }
   if(params.get("view"))S.view=params.get("view");
   if(params.get("cal"))S.calMode=params.get("cal");
-  if(params.get("onboard")){ startOnboarding({name:"Mitch",onDone:()=>{ mountShell(); renderAll(); }}); }
+  if(params.get("onboard")){ startOnboarding({name:S.profile?.name||"",onDone:()=>{ mountShell(); renderAll(); }}); }
   else { mountShell(); renderAll(); BELL.start(); if(params.get("family"))A.openFamilyMode(); }
 }
 // A tablet on the counter opens straight into family mode with ?family=1.
