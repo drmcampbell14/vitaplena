@@ -40,6 +40,13 @@ declare const __BUILD__: string;
 interface ImportMetaEnv {
   /** Overrides the site the native shells talk to (a branch deploy, for instance). */
   readonly VITE_SITE_URL?: string;
+  /** "1" shows the Sign in with Apple button (needs the Apple provider in Firebase). */
+  readonly VITE_APPLE_SIGNIN?: string;
+  /** The Apple Services ID used for Sign in with Apple on the web. */
+  readonly VITE_APPLE_SERVICE_ID?: string;
+  /** RevenueCat public SDK keys; their presence switches the paywall on in that store's build. */
+  readonly VITE_RC_IOS_KEY?: string;
+  readonly VITE_RC_ANDROID_KEY?: string;
   readonly DEV: boolean;
   readonly PROD: boolean;
 }

@@ -1,4 +1,4 @@
-package com.vitaplena.app;
+package com.cognitivechristian.vitaplena;
 
 import com.getcapacitor.BridgeActivity;
 

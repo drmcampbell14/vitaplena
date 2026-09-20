@@ -5,11 +5,11 @@
    joins a spouse's with an invite code. */
 import { auth, db, provider, S } from "../core/data.js";
 import { callFn } from "../lib/api.js";
-import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut,
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, OAuthProvider, signInWithCredential,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { $, A, esc, toast, initialsOf } from "../ui/dom.js";
-import { isNative } from "../lib/native.js";
+import { isNative, platform, SITE } from "../lib/native.js";
 
 const AUTH_MESSAGES={
   "auth/invalid-email":"That doesn't look like an email address.",
@@ -30,6 +30,16 @@ const AUTH_MESSAGES={
   "auth/account-exists-with-different-credential":"That email is already registered another way. Try the other sign-in option."
 };
 const authMessage=e=>AUTH_MESSAGES[e?.code]||"Something went wrong. Try again in a moment.";
+
+/* Sign in with Apple needs the Apple Developer account first (the provider in
+   Firebase, a Services ID for the web). Until then the button stays off:
+   build with VITE_APPLE_SIGNIN=1 to show it. See store/SUBMIT.md. */
+const APPLE_ON=import.meta.env?.VITE_APPLE_SIGNIN==="1";
+const APPLE_SERVICE_ID=import.meta.env?.VITE_APPLE_SERVICE_ID||"com.cognitivechristian.vitaplena.web";
+const APPLE_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.365 12.79c-.02-2.24 1.83-3.31 1.91-3.36-1.04-1.52-2.66-1.73-3.24-1.76-1.38-.14-2.69.81-3.39.81-.7 0-1.78-.79-2.92-.77-1.5.02-2.89.87-3.66 2.22-1.56 2.71-.4 6.72 1.12 8.92.74 1.08 1.63 2.29 2.79 2.25 1.12-.05 1.54-.72 2.9-.72 1.35 0 1.73.72 2.92.7 1.2-.02 1.96-1.09 2.7-2.17.85-1.25 1.2-2.46 1.22-2.52-.03-.01-2.34-.9-2.35-3.6zM14.1 6.2c.62-.75 1.03-1.79.92-2.83-.89.04-1.97.59-2.61 1.34-.57.66-1.08 1.72-.94 2.74.99.08 2.01-.5 2.63-1.25z"/></svg>';
+/** Apple wants the SHA-256 of the nonce; Firebase wants the nonce itself. */
+function randomNonce(){ const a=new Uint8Array(32); crypto.getRandomValues(a); return Array.from(a,b=>b.toString(16).padStart(2,"0")).join(""); }
+async function sha256(s){ const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)); return Array.from(new Uint8Array(h),b=>b.toString(16).padStart(2,"0")).join(""); }
 
 const GOOGLE_SVG='<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C41 35.4 44 30.2 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>';
 
@@ -59,14 +69,16 @@ export function showSignIn(){
         <button type="button" class="link" id="auth-forgot">Forgot password?</button>
       </div>
     </form>
-    ${isNative()?"":`<div class="or">or</div>
-    <button class="gbtn" id="btn-google">${GOOGLE_SVG} Continue with Google</button>`}
+    ${isNative()&&!(APPLE_ON&&platform()==="ios")?"":`<div class="or">or</div>`}
+    ${APPLE_ON&&(!isNative()||platform()==="ios")?`<button class="gbtn" id="btn-apple">${APPLE_SVG} Continue with Apple</button>`:""}
+    ${isNative()?"":`<button class="gbtn" id="btn-google">${GOOGLE_SVG} Continue with Google</button>`}
     <div class="verse">"Unless the Lord builds the house, those who build it labor in vain." — Psalm 127</div>`;
   setMode("signin");
   $("auth-toggle").onclick=()=>setMode(mode==="signin"?"signup":"signin");
   $("auth-form").onsubmit=onSubmit;
   $("auth-forgot").onclick=onForgot;
   if($("btn-google"))$("btn-google").onclick=onGoogle;
+  if($("btn-apple"))$("btn-apple").onclick=onApple;
 }
 function setMode(m){
   mode=m;
@@ -75,7 +87,7 @@ function setMode(m){
   $("auth-pass").setAttribute("autocomplete",m==="signin"?"current-password":"new-password");
   $("auth-err").textContent="";
 }
-function busy(b){ $("auth-submit").disabled=b; if($("btn-google"))$("btn-google").disabled=b; }
+function busy(b){ $("auth-submit").disabled=b; if($("btn-google"))$("btn-google").disabled=b; if($("btn-apple"))$("btn-apple").disabled=b; }
 async function onSubmit(ev){
   ev.preventDefault();
   const email=$("auth-email").value.trim(), pass=$("auth-pass").value, err=$("auth-err");
@@ -108,6 +120,28 @@ async function onGoogle(){
       try{ await signInWithRedirect(auth,provider); }catch(e2){ err.textContent=authMessage(e2); }
     } else err.textContent=authMessage(e);
   }
+}
+
+/** Sign in with Apple. On the phone the system sheet signs the nonce and Firebase
+    checks it; on the web Firebase's own popup does the whole dance. */
+async function onApple(){
+  const err=$("auth-err"); err.textContent=""; busy(true);
+  const provider=new OAuthProvider("apple.com"); provider.addScope("email"); provider.addScope("name");
+  try{
+    if(isNative()&&platform()==="ios"){
+      const raw=randomNonce(), hashed=await sha256(raw);
+      const { SignInWithApple }=await import("@capacitor-community/apple-sign-in");
+      const r=await SignInWithApple.authorize({clientId:APPLE_SERVICE_ID,redirectURI:SITE+"/",scopes:"email name",nonce:hashed});
+      const idToken=r?.response?.identityToken;
+      if(!idToken)throw new Error("Apple didn't return a token.");
+      await signInWithCredential(auth,provider.credential({idToken,rawNonce:raw}));
+    } else {
+      await signInWithPopup(auth,provider);
+    }
+  }catch(e){
+    const cancelled=e?.code==="auth/popup-closed-by-user"||e?.code==="auth/cancelled-popup-request"||/cancel|1001/i.test(String(e?.message||e));
+    if(!cancelled)err.textContent=AUTH_MESSAGES[e?.code]||("Apple sign-in didn't finish: "+String(e?.message||e));
+  }finally{ busy(false); }
 }
 
 /* ---------------- household: create or join ---------------- */

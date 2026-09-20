@@ -14,6 +14,7 @@ import { BELL } from "./core/bells.js";
 import { loadGis } from "./lib/gcal.js";
 import { isDemo, loadDemo } from "./app/demo.js";
 import { isNative, initNative, hideSplash } from "./lib/native.js";
+import { initBilling } from "./lib/billing.js";
 import { $, A, closeModal, closeSheet, toast } from "./ui/dom.js";
 import { go } from "./app/shell.js";
 import "./screens/today.js";
@@ -22,6 +23,7 @@ import "./screens/calendar.js";
 import "./screens/tasks.js";
 import "./screens/bills.js";
 import "./screens/scan.js";
+import "./screens/plan.js";
 import "./screens/us.js";
 import "./screens/more.js";
 import "./companion/companion.js";
@@ -62,6 +64,7 @@ if(!isDemo())onAuthStateChanged(auth,async(user)=>{
 let attached=false;
 export function attachHousehold(hid){
   S.hid=hid; S.unsubs.forEach(u=>u()); S.unsubs=[];
+  initBilling(hid);
   S.unsubs.push(onSnapshot(doc(db,"households",hid),snap=>{
     if(!snap.exists())return;
     S.house=snap.data(); S.profile=S.house.profiles?.[S.user.uid]||null;

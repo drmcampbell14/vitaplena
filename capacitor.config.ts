@@ -8,7 +8,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
    here changes how the web app behaves; src/lib/native.js is where the app
    notices it is inside a shell. `npm run native` rebuilds and copies. */
 const config: CapacitorConfig = {
-  appId: "com.vitaplena.app",
+  appId: "com.cognitivechristian.vitaplena",
   appName: "Vita Plena",
   webDir: "dist",
   // The app's own background, shown behind the web view before it paints.

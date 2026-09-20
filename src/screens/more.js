@@ -11,6 +11,8 @@ import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet,
 import { isNative } from "../lib/native.js";
 import { registerScreen, go, renderAll } from "../app/shell.js";
 import { BELL } from "../core/bells.js";
+import { planLine } from "./plan.js";
+import { billingOn } from "../lib/billing.js";
 
 /** Build stamp, injected by Vite (see vite.config.js). "dev" when running `npm run dev`. */
 export const BUILD = (typeof __BUILD__ !== "undefined") ? __BUILD__ : "dev";
@@ -54,8 +56,7 @@ function settings(){
   const me=S.user.uid, owner=S.house.owner||(S.house.members||[])[0], isOwner=owner===me;
   const members=S.house.members||[];
   const sub=S.house.subscription;
-  let plan="Founders' household · no subscription needed";
-  if(sub){ if(sub.status==="trial"){ const left=Math.ceil((new Date(sub.trialEndsAt+"T12:00").getTime()-Date.now())/864e5); plan=`Free trial · ${left>0?left+" days left":"ended"} · Beacon ${QUOTA_TRIAL} messages a day`; } else if(sub.status==="active")plan="Family plan · active"; else if(sub.status==="lapsed")plan="Subscription lapsed · Beacon is resting"; }
+  const plan=planLine()+(sub?.status==="trial"?` · Beacon ${QUOTA_TRIAL} messages a day`:sub?.status==="lapsed"?" · Beacon is resting":"");
   return `
     <div class="card"><div class="sec-row"><h2 class="sec">You</h2></div>
       <label class="f">Name</label><input id="set-name" value="${esc(S.profile?.name||"")}">
@@ -109,7 +110,7 @@ function settings(){
     </div>
 
     <div class="card"><div class="sec-row"><h2 class="sec">Plan</h2></div>
-      <div class="row"><div class="emoji">✠</div><div class="grow"><div class="title">${esc(plan)}</div><div class="sub">Family subscriptions arrive with the App Store release. Nothing is charged before then.</div></div></div>
+      <div class="row"><div class="emoji">✠</div><div class="grow"><div class="title">${plan}</div><div class="sub">${billingOn()?"One family plan covers every member of the household. The rule, the calendar and the prayers are never locked.":"Family subscriptions arrive with the App Store release. Nothing is charged before then."}</div></div>${billingOn()?`<button class="btn sm" onclick="A.openFamilyPlan()">${sub?.status==="active"?"Manage":"Subscribe"}</button>`:""}</div>
     </div>
 
     <div class="card"><div class="sec-row"><h2 class="sec">More tools</h2></div>

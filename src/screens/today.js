@@ -10,6 +10,8 @@ import { scheduleTasks, toMin, toHHMM, DEFAULT_TASK_MINS, DAY_END, BUFFER_MINS }
 import { billsCard } from "./bills.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, openSheet, toast } from "../ui/dom.js";
+import { billingOn } from "../lib/billing.js";
+import { trialOver } from "./plan.js";
 import { registerScreen } from "../app/shell.js";
 
 const nowHHMM=()=>{const n=new Date();return String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0");};
@@ -52,6 +54,16 @@ export function todayTimeline(view=S.view){
     else if(!optional.has(tk.id))items.push({t:"23:59",kind:"task",tk,done:false,later:true});
   });
   return items.sort((a,b)=>a.t.localeCompare(b.t));
+}
+
+/* The plan, only when there is somewhere to subscribe (inside the store apps) and
+   something to say: the trial is over, or the plan has lapsed. Nothing is locked. */
+function planCard(){
+  if(!billingOn())return "";
+  const sub=S.house?.subscription;
+  if(sub?.status==="lapsed")return `<div class="card tint" style="margin-top:18px"><div class="eyebrow">The family plan</div><div class="brief">The subscription has lapsed. The rule, the calendar and the prayers all still work; Beacon and the Sunday briefing are resting.</div><div class="actions"><button class="btn sm" onclick="A.openFamilyPlan()">Renew</button></div></div>`;
+  if(trialOver())return `<div class="card tint" style="margin-top:18px"><div class="eyebrow">The family plan</div><div class="brief">Your thirty days are up. Nothing is locked. When you're ready, the family plan keeps Beacon and the briefing going.</div><div class="actions"><button class="btn sm" onclick="A.openFamilyPlan()">See the plan</button></div></div>`;
+  return "";
 }
 
 function render(){
@@ -118,6 +130,7 @@ function render(){
     </div>
     ${tlHtml}
     ${billsCard()}
+    ${planCard()}
     ${S.briefing?`<div class="card tint" style="margin-top:18px"><div class="eyebrow">The week ahead · ${new Date(S.briefing.weekOf+"T12:00").toLocaleDateString(undefined,{month:"long",day:"numeric"})}</div><div class="brief">${esc(S.briefing.text)}</div></div>`:""}
     <div class="two" style="margin-top:18px">
       <div class="card"><div class="sec-row"><div class="sec-sm">This week</div><button class="editp" onclick="A.addFocusModal()">${ICON.plus}</button></div>
