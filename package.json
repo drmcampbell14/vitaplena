@@ -9,6 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p jsconfig.json --noEmit",
+    "lectionary": "node scripts/build-lectionary.mjs",
+    "bible": "node scripts/build-bible.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

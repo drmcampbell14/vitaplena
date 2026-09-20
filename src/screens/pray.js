@@ -5,6 +5,7 @@ import { S, db, esc, $$, jsq, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAI
   saveKey, saveField, addItem, updItem, delItem, doneSet, scheduledToday, isMine, profOf, toast,
   feastKey, usccbUrl, mysteriesFor, fastAbstinence, daysSince } from "../core/data.js";
 import { PRAYERS, findPrayer, prayerById, rosarySteps, chapletSteps, examenSteps } from "../content/prayers.js";
+import { passage } from "../core/scripture.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet, haptic } from "../ui/dom.js";
 import { registerScreen, renderAll, namesTheSame } from "../app/shell.js";
 
@@ -21,6 +22,22 @@ export function loadReadings(force=false){
   if(!force&&S.liturgy.date===ds&&S.liturgy.loaded)return;
   if(!force&&S.liturgy.date===ds&&S.liturgy.error)return;   // one failure per day; the retry button forces
   loadingFor=ds;
+  /* First the bundled index (built at deploy, cached for offline): today's title
+     and citations with no outside site involved. Only if today isn't in it do we
+     ask the live function. */
+  fetch(`/data/lectionary/${todayS().slice(0,4)}.json`,{cache:"no-cache"})
+    .then(r=>r.ok?r.json():null).catch(()=>null)
+    .then(idx=>{
+      const entry=idx&&idx[todayS()];
+      if(entry&&Array.isArray(entry.readings)&&entry.readings.length){
+        S.liturgy={date:ds,day:entry.day||"",readings:entry.readings,copyright:"",loaded:true,via:"index"};
+        loadingFor=null; renderAll(); return;
+      }
+      loadingFor=null; loadReadingsLive(ds);
+    });
+}
+function loadReadingsLive(ds){
+  loadingFor=ds;
   const ctl=new AbortController();
   const bail=setTimeout(()=>ctl.abort(),12000);
   const attempt=(S.liturgy.date===ds?S.liturgy.attempts:0)||0;
@@ -31,7 +48,7 @@ export function loadReadings(force=false){
       const reason=e?.name==="AbortError"?"The readings service took too long to answer.":(e?.message||"Unknown error.");
       S.liturgy={date:ds,loaded:false,error:true,reason,attempts:attempt+1};
       /* The first miss of the day is usually a cold start; try once more on our own. */
-      if(attempt===0)setTimeout(()=>loadReadings(true),15000);
+      if(attempt===0)setTimeout(()=>loadReadingsLive(ds),15000);
     })
     .finally(()=>{ clearTimeout(bail); loadingFor=null; renderAll(); });
 }
@@ -80,7 +97,7 @@ function render(){
       ${refs.length
         ?refs.map(x=>`<div class="ref"><div class="l">${esc(x.label)}</div><div class="v">${esc(x.source)}</div></div>`).join("")
         :L.error
-          ?`<div class="empty">The readings didn't load${L.reason?" — "+esc(L.reason):""}. <button class="link" onclick="A.retryReadings()">Try again</button></div>`
+          ?`<div class="empty">The readings didn't load${L.reason?" — "+esc(String(L.reason).replace(/\.+$/,"")):""}. <button class="link" onclick="A.retryReadings()">Try again</button></div>`
           :`<div class="ref skeleton"><div class="l">First Reading</div><div class="v">&nbsp;</div></div><div class="ref skeleton"><div class="l">Psalm</div><div class="v">&nbsp;</div></div><div class="ref skeleton"><div class="l">Gospel</div><div class="v">&nbsp;</div></div>`}
       <div class="ref-actions">
         ${refs.length?`<button class="btn sm" onclick="A.openReadings()">Read them</button>`:""}
@@ -249,16 +266,26 @@ A.rmPlan=id=>saveKey("plan",(S.state.plan||[]).filter(p=>p.id!==id)).then(()=>re
 A.delExamen=id=>delItem(id).then(()=>repaint("examens"));
 
 /* ---------------- readers ---------------- */
-A.openReadings=()=>{
+A.openReadings=async()=>{
   const L=S.liturgy||{}, list=L.readings||[];
   if(!list.length)return toast("The readings haven't loaded yet");
-  const block=(r,i)=>`<details class="rdg"${i===0?" open":""}><summary><span>${esc(r.label)}</span><span class="src">${esc(r.source)}</span></summary>
-    ${r.heading?`<div class="rhead">${esc(r.heading)}</div>`:""}
-    <div class="rtext">${r.body.map(p=>`<p>${esc(p)}</p>`).join("")}</div></details>`;
-  openSheet(`<div class="reader"><div class="eyebrow lit">Today at Mass</div><div class="r-title" style="font-size:28px">${esc(L.day||"")}</div>
-    <div class="r-note">Jerusalem Bible, via Universalis. For the NABRE as read at Mass in the United States, <a href="${usccbUrl(new Date())}" target="_blank" rel="noopener">open USCCB</a>.</div>
-    <div style="margin-top:14px">${list.map(block).join("")}</div>
-    ${L.copyright?`<div class="hint" style="margin-top:16px;opacity:.8">${esc(L.copyright)}</div>`:""}</div>`,{cls:"full"});
+  const head=`<div class="eyebrow lit">Today at Mass</div><div class="r-title" style="font-size:28px">${esc(L.day||"")}</div>
+    <div class="r-note">Douay-Rheims (Challoner), the Church's English Bible for three centuries. The NABRE as proclaimed at Mass in the United States is on <a href="${usccbUrl(new Date())}" target="_blank" rel="noopener">USCCB</a>.</div>`;
+  openSheet(`<div class="reader" data-pane="readings">${head}<div style="margin-top:18px"><div class="empty">Opening the Scriptures…</div></div></div>`,{cls:"full"});
+  /* Each citation is pulled from the bundled Douay-Rheims. If a citation can't be
+     read (an odd spelling, a book file missing offline), the function's own text
+     is shown if we have it, else the reference alone with the USCCB link above. */
+  const blocks=await Promise.all(list.map(async(r,i)=>{
+    let p=null; try{ p=await passage(r.source); }catch{ p=null; }
+    const body=p&&p.verses.length
+      ?p.verses.map(v=>`<p><sup class="vn">${v.v}</sup>${esc(v.text)}</p>`).join("")
+      :(Array.isArray(r.body)&&r.body.length?r.body.map(t=>`<p>${esc(t)}</p>`).join(""):`<p class="muted">This passage isn't in the bundled text. Read it on USCCB.</p>`);
+    return `<details class="rdg"${i===0?" open":""}><summary><span>${esc(r.label)}</span><span class="src">${esc(r.source)}</span></summary>
+      ${r.heading?`<div class="rhead">${esc(r.heading)}</div>`:""}<div class="rtext">${body}</div></details>`;
+  }));
+  const el=document.querySelector('.sheet.open [data-pane="readings"]'); if(!el)return;
+  el.innerHTML=`${head}<div style="margin-top:14px">${blocks.join("")}</div>
+    <div class="hint" style="margin-top:16px;opacity:.8">Douay-Rheims Bible, Challoner revision — public domain. Psalms follow the Vulgate numbering; the number in brackets is the Hebrew one.</div>`;
 };
 A.openLibrary=()=>{
   const easter=season(new Date()).name==="Easter";
