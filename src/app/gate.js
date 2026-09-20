@@ -9,6 +9,7 @@ import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { $, A, esc, toast, initialsOf } from "../ui/dom.js";
+import { isNative } from "../lib/native.js";
 
 const AUTH_MESSAGES={
   "auth/invalid-email":"That doesn't look like an email address.",
@@ -58,14 +59,14 @@ export function showSignIn(){
         <button type="button" class="link" id="auth-forgot">Forgot password?</button>
       </div>
     </form>
-    <div class="or">or</div>
-    <button class="gbtn" id="btn-google">${GOOGLE_SVG} Continue with Google</button>
+    ${isNative()?"":`<div class="or">or</div>
+    <button class="gbtn" id="btn-google">${GOOGLE_SVG} Continue with Google</button>`}
     <div class="verse">"Unless the Lord builds the house, those who build it labor in vain." — Psalm 127</div>`;
   setMode("signin");
   $("auth-toggle").onclick=()=>setMode(mode==="signin"?"signup":"signin");
   $("auth-form").onsubmit=onSubmit;
   $("auth-forgot").onclick=onForgot;
-  $("btn-google").onclick=onGoogle;
+  if($("btn-google"))$("btn-google").onclick=onGoogle;
 }
 function setMode(m){
   mode=m;
@@ -74,7 +75,7 @@ function setMode(m){
   $("auth-pass").setAttribute("autocomplete",m==="signin"?"current-password":"new-password");
   $("auth-err").textContent="";
 }
-function busy(b){ $("auth-submit").disabled=b; $("btn-google").disabled=b; }
+function busy(b){ $("auth-submit").disabled=b; if($("btn-google"))$("btn-google").disabled=b; }
 async function onSubmit(ev){
   ev.preventDefault();
   const email=$("auth-email").value.trim(), pass=$("auth-pass").value, err=$("auth-err");

@@ -8,6 +8,7 @@ import { signOut } from "firebase/auth";
 import { callFn } from "../lib/api.js";
 import { people } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet, toast } from "../ui/dom.js";
+import { isNative } from "../lib/native.js";
 import { registerScreen, go, renderAll } from "../app/shell.js";
 import { BELL } from "../core/bells.js";
 
@@ -49,7 +50,7 @@ function render(){
 /* ---------------- settings ---------------- */
 function settings(){
   const st=BELL.settings;
-  const perm=("Notification" in window)?Notification.permission:"unsupported";
+  const perm=BELL.permission;
   const me=S.user.uid, owner=S.house.owner||(S.house.members||[])[0], isOwner=owner===me;
   const members=S.house.members||[];
   const sub=S.house.subscription;
@@ -62,10 +63,10 @@ function settings(){
       <div class="actions"><button class="btn" onclick="A.saveProfile()">Save</button></div></div>
 
     <div class="card"><div class="sec-row"><h2 class="sec">The bells</h2></div>
-      <div class="kv"><div class="k">Ring on this device<small>At each practice's hour, while the app is open</small></div><button class="switch ${st.on?"on":""}" onclick="A.bellSet('on',${!st.on})"></button></div>
+      <div class="kv"><div class="k">Ring on this device<small>${isNative()?"At each practice's hour, whether the app is open or not":"At each practice's hour, while the app is open"}</small></div><button class="switch ${st.on?"on":""}" onclick="A.bellSet('on',${!st.on})"></button></div>
       <label class="f">Sound</label><div class="pills">${[["bell","Church bell"],["chime","Soft chime"],["silent","Silent"]].map(([v,l])=>`<button class="pill ${st.sound===v?"on":""}" onclick="A.bellSet('sound','${v}')">${l}</button>`).join("")}<button class="pill" onclick="A.bellTest()">▶ Hear it</button></div>
       <div class="two" style="margin-top:12px"><div><label class="f">Quiet from</label><input type="time" value="${st.quietFrom}" onchange="A.bellSet('quietFrom',this.value)"></div><div><label class="f">Until</label><input type="time" value="${st.quietTo}" onchange="A.bellSet('quietTo',this.value)"></div></div>
-      <div class="kv" style="margin-top:8px"><div class="k">Notifications<small>${perm==="granted"?"Allowed. The bell can reach you when the app is in the background.":perm==="denied"?"Blocked in browser settings.":perm==="unsupported"?"Not supported in this browser.":"Not asked yet."}</small></div>${perm==="default"?`<button class="btn sm" onclick="A.bellPerm()">Allow</button>`:""}</div>
+      <div class="kv" style="margin-top:8px"><div class="k">Notifications<small>${perm==="granted"?"Allowed. The bell can reach you when the app is closed.":perm==="denied"?(isNative()?"Blocked. Allow notifications for Vita Plena in your phone's Settings.":"Blocked in browser settings."):perm==="unsupported"?"Not supported in this browser.":"Not asked yet."}</small></div>${perm==="default"?`<button class="btn sm" onclick="A.bellPerm()">Allow</button>`:""}</div>
       <div class="kv"><div class="k">Family mode<small>Big type for a tablet on the counter. Open with the menu, or add ?family=1 to the address.</small></div><button class="btn sm ghost" onclick="A.openFamilyMode()">Open</button></div>
     </div>
 

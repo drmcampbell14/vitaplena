@@ -6,6 +6,7 @@ import { S, db, esc, $$, jsq, rid, fmtT, fmtMins, todayS, ymd, addD, dayIdx, SAI
   feastKey, usccbUrl, mysteriesFor, fastAbstinence, daysSince } from "../core/data.js";
 import { PRAYERS, findPrayer, prayerById, rosarySteps, chapletSteps, examenSteps } from "../content/prayers.js";
 import { passage } from "../core/scripture.js";
+import { apiBase } from "../lib/native.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet, haptic } from "../ui/dom.js";
 import { registerScreen, renderAll, namesTheSame } from "../app/shell.js";
 
@@ -25,8 +26,10 @@ export function loadReadings(force=false){
   /* First the bundled index (built at deploy, cached for offline): today's title
      and citations with no outside site involved. Only if today isn't in it do we
      ask the live function. */
-  fetch(`/data/lectionary/${todayS().slice(0,4)}.json`,{cache:"no-cache"})
+  const idxPath=`/data/lectionary/${todayS().slice(0,4)}.json`;
+  fetch(apiBase()+idxPath,{cache:"no-cache"})
     .then(r=>r.ok?r.json():null).catch(()=>null)
+    .then(idx=>idx||(apiBase()?fetch(idxPath).then(r=>r.ok?r.json():null).catch(()=>null):null))
     .then(idx=>{
       const entry=idx&&idx[todayS()];
       if(entry&&Array.isArray(entry.readings)&&entry.readings.length){
@@ -41,7 +44,7 @@ function loadReadingsLive(ds){
   const ctl=new AbortController();
   const bail=setTimeout(()=>ctl.abort(),12000);
   const attempt=(S.liturgy.date===ds?S.liturgy.attempts:0)||0;
-  fetch("/.netlify/functions/readings?date="+ds,{signal:ctl.signal})
+  fetch(apiBase()+"/.netlify/functions/readings?date="+ds,{signal:ctl.signal})
     .then(async r=>{ const j=await r.json().catch(()=>({})); if(!r.ok||j.error)throw new Error(j.reason||j.message||("The readings service answered "+r.status+".")); return j; })
     .then(j=>{ S.liturgy={date:ds,day:j.day||"",readings:j.readings||[],copyright:j.copyright||"",loaded:true}; })
     .catch(e=>{

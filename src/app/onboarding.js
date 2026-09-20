@@ -5,6 +5,7 @@
 import { S, bus, db, rid, esc, DEFAULT_PRACTICES } from "../core/data.js";
 import { doc, setDoc } from "firebase/firestore";
 import { $, A, ICON, toast, openSheet } from "../ui/dom.js";
+import { isNative } from "../lib/native.js";
 import { BELL } from "../core/bells.js";
 
 const OB={
@@ -45,7 +46,7 @@ export function startOnboarding({name,onDone:cb,existing=false}={}){
     OB.marriageRhythm=S.state.marriageRhythm||"weekly";
   }
   OB.sound=BELL.settings.sound;
-  OB.permission=("Notification" in window)?Notification.permission:"unsupported";
+  OB.permission=BELL.permission;
   $("loading").classList.add("hide"); $("gate").classList.add("hide");
   $("onboard").classList.remove("hide");
   render();
@@ -113,7 +114,7 @@ A.obMarr=v=>{ OB.marriageRhythm=v; render(); };
 
 function bells(){
   const perm=OB.permission;
-  const permLine=perm==="granted"?"Bells are allowed on this device.":perm==="denied"?"Notifications are blocked in your browser settings. The house will still ring while the app is open.":perm==="unsupported"?"This browser can't show notifications. The house will still ring while the app is open.":"";
+  const permLine=perm==="granted"?"Bells are allowed on this device.":perm==="denied"?(isNative()?"Notifications are off for Vita Plena in your phone's Settings. The house will still ring while the app is open.":"Notifications are blocked in your browser settings. The house will still ring while the app is open."):perm==="unsupported"?"This browser can't show notifications. The house will still ring while the app is open.":"";
   const sounds=[["bell","A church bell","Three strikes, the Angelus figure"],["chime","A soft chime","Gentler, for a small house"],["silent","Silent","The screen alone"]]
     .map(([v,l,m])=>`<button class="choice ${OB.sound===v?"on":""}" onclick="A.obSound('${v}')"><span class="emoji">${v==="bell"?"🔔":v==="chime"?"🎐":"🤫"}</span><span><div class="c-name">${l}</div><div class="c-meta">${m}</div></span><span class="c-check">${ICON.check}</span></button>`).join("");
   return `${back()}

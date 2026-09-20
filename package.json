@@ -9,16 +9,30 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p jsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lectionary": "node scripts/build-lectionary.mjs",
     "bible": "node scripts/build-bible.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "icons": "node scripts/build-icons.mjs && capacitor-assets generate --ios --android",
+    "native": "npm run build && cap sync",
+    "ios": "npm run native && cap open ios",
+    "android": "npm run native && cap open android"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "firebase": "10.12.2",
     "firebase-admin": "^12.7.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "typescript": "5.6",
     "vite": "^5.4.0",
     "vitest": "^2.1.0"

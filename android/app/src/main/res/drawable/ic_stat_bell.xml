@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vita Plena's status-bar icon for the bells: the household's cross, white on transparent,
+     as Android requires for notification icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M232 96h48v104h104v48H280v168h-48V248H128v-48h104z" />
+</vector>

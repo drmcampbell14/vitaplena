@@ -5,6 +5,7 @@
    scattered window globals makes them greppable and lets screens register and
    replace their own actions cleanly. */
 import { $, esc } from "../core/util.js";
+import { nativeTap } from "../lib/native.js";
 export { $, esc };
 
 /** Action registry. Screens assign: A.doThing = (...) => {}. Deliberately an open
@@ -14,7 +15,7 @@ export const A = (window.A = window.A || {});
 
 /** Haptic tap where supported (Android, Capacitor); silently nothing elsewhere.
     @param {number|number[]} [pattern] */
-export function haptic(pattern=12){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch{ /* no-op */ } }
+export function haptic(pattern=12){ if(nativeTap())return; try{ navigator.vibrate && navigator.vibrate(pattern); }catch{ /* no-op */ } }
 
 /* ---------------- getting out of an overlay ----------------
    A full-screen sheet hides the whole app, so every instinct for leaving it has

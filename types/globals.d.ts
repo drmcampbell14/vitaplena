@@ -35,3 +35,14 @@ declare const google: any;
 
 /** Build stamp injected by Vite's `define` (see vite.config.js). */
 declare const __BUILD__: string;
+
+/** Vite's build-time environment (import.meta.env). Only the keys the app reads. */
+interface ImportMetaEnv {
+  /** Overrides the site the native shells talk to (a branch deploy, for instance). */
+  readonly VITE_SITE_URL?: string;
+  readonly DEV: boolean;
+  readonly PROD: boolean;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

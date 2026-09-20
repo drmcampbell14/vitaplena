@@ -13,7 +13,9 @@ import { mountShell, renderAll, applyLiturgy } from "./app/shell.js";
 import { BELL } from "./core/bells.js";
 import { loadGis } from "./lib/gcal.js";
 import { isDemo, loadDemo } from "./app/demo.js";
+import { isNative, initNative, hideSplash } from "./lib/native.js";
 import { $, A, closeModal, closeSheet, toast } from "./ui/dom.js";
+import { go } from "./app/shell.js";
 import "./screens/today.js";
 import "./screens/pray.js";
 import "./screens/calendar.js";
@@ -49,11 +51,11 @@ initGate({
 
 if(!isDemo())onAuthStateChanged(auth,async(user)=>{
   S.user=user;
-  if(!user){ showSignIn(); return; }
+  if(!user){ showSignIn(); hideSplash(); return; }
   $("loading").classList.remove("hide");
   const snap=await getDoc(doc(db,"users",user.uid)).catch(()=>null);
   if(snap&&snap.exists()&&snap.data().hid)attachHousehold(snap.data().hid);
-  else showHouseholdSetup(user);
+  else { showHouseholdSetup(user); hideSplash(); }
 });
 
 /* ---------------- realtime ---------------- */
@@ -64,7 +66,7 @@ export function attachHousehold(hid){
     if(!snap.exists())return;
     S.house=snap.data(); S.profile=S.house.profiles?.[S.user.uid]||null;
     if(!attached){ attached=true; hideGate(); mountShell(); BELL.start(); if(S.familyOnMount)setTimeout(()=>A.openFamilyMode(),50); }
-    renderAll();
+    renderAll(); hideSplash();
   },e=>toast("Sync error: "+e.message)));
   S.unsubs.push(onSnapshot(doc(db,"households",hid,"state","main"),snap=>{ S.state=snap.exists()?snap.data():{}; migratePeople(); renderAll(); }));
   S.unsubs.push(onSnapshot(collection(db,"households",hid,"items"),snap=>{ S.items=snap.docs.map(d=>({id:d.id,...d.data()})); renderAll(); }));
@@ -90,6 +92,22 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); clo
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)renderAll(); });
 setInterval(()=>{ const n=new Date(); if(n.getHours()===0&&n.getMinutes()===0)renderAll(); },60000);
 
-if("serviceWorker" in navigator&&location.hostname!=="localhost"){
+/* ---------------- inside the iOS / Android app ----------------
+   The back button walks out the way a person would: overlay, then bell, then
+   home tab, then the app itself. Coming back to the foreground redraws the day
+   and re-plans the bells. */
+initNative({
+  onBack:()=>{
+    if($("modal")?.classList.contains("open")){ closeModal(); return true; }
+    if($("sheet")?.classList.contains("open")){ closeSheet(); return true; }
+    if($("bell")?.classList.contains("on")){ A.hideBell?.(); return true; }
+    if($("family")&&!$("family").classList.contains("hide")){ A.closeFamilyMode?.(); return true; }
+    if(S.tab&&S.tab!=="today"){ go("today"); return true; }
+    return false;
+  },
+  onResume:()=>{ renderAll(); BELL.tick(); }
+});
+
+if(!isNative()&&"serviceWorker" in navigator&&location.hostname!=="localhost"){
   window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
 }
