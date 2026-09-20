@@ -6,7 +6,7 @@
 
 /* Bumped on every release. A new name means every old cache is deleted on activate,
    so a device can never be stuck serving a previous build's shell. */
-const VERSION = "vp-shell-v5";
+const VERSION = "vp-shell-v6";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -59,7 +59,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Hashed build assets, icons, and the bundled Bible: cache first, then network, and remember what we fetch.
-  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/icons/") || url.pathname.startsWith("/data/drc/") || url.pathname.endsWith(".webmanifest")) {
+  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/icons/") || url.pathname.startsWith("/data/drc/") || url.pathname.startsWith("/fonts/") || url.pathname.endsWith(".webmanifest")) {
     event.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
         if (res.ok) caches.open(VERSION).then((c) => c.put(req, res.clone()));

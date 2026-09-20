@@ -21,18 +21,18 @@ npm run build      # → dist/
 
 Open the site in Safari (iPhone) or Chrome (Android), then **Share → Add to Home Screen**. It opens full screen, keeps its icon, and the shell works offline. A Fire HD on the kitchen counter is the same steps.
 
-## Wrap it for the stores
+## The store apps
 
-The app is a plain `dist/` folder with no web-only tricks, so Capacitor wraps it as-is:
+The same `dist/` runs inside an iOS app and an Android app (Capacitor 8; projects in `ios/` and `android/`, bundle id `com.cognitivechristian.vitaplena`). On a Mac with Xcode:
 
 ```
-npm i -D @capacitor/cli @capacitor/core @capacitor/ios @capacitor/android
-npx cap init "Vita Plena" com.cognitivechristian.vitaplena --web-dir dist
-npm run build && npx cap add ios && npx cap add android && npx cap sync
-npx cap open ios      # Xcode → sign with the Apple Developer account → archive → TestFlight
+npm run ios        # build, copy into ios/, open Xcode
+npm run android    # same for Android Studio
+npm run native     # build + copy only
+npm run icons      # redraw icons and launch screens from scripts/build-icons.mjs
 ```
 
-Before submission: Sign in with Apple (required because Google sign-in is offered), a privacy policy URL, a support URL, and the `?demo=1` preview as the reviewers' demo account. See spec §3 Phase 6.
+Inside the app the bells are local notifications, calls go to the production site by name, Google sign-in is hidden (email is the way in; Sign in with Apple switches on with `VITE_APPLE_SIGNIN=1`), and the family plan appears once RevenueCat keys are set. `store/SUBMIT.md` is the click-by-click from Apple enrolment to submission; `store/LISTING.md` is the listing copy; `store/screenshots/` are made by `scripts/store-shots.mjs`.
 
 ## Stack
 
@@ -50,7 +50,9 @@ src/ui/dom.js                sheet, modal, toast, icons, the A action registry
 src/styles/app.css           design system
 netlify/functions/           companion (Beacon), household-admin, ics (calendar feed), briefing (scheduled, Sundays)
 netlify/functions/_shared/   admin (Firebase Admin, auth, quotas), ics builder
-public/                      manifest, service worker, icons, privacy.html, terms.html
+public/                      manifest, service worker, icons, fonts, privacy/terms/support pages, data (Bible, lectionary)
+ios/ android/                the native shells (Capacitor); capacitor.config.ts
+store/                       listing copy, submission guide, screenshots
 firestore.rules              security rules (published by hand until CI deploy lands)
 test/                        Vitest
 ```

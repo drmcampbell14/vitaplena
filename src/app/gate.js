@@ -49,6 +49,11 @@ let mode="signin";
 
 export function initGate(h){ handlers={...handlers,...h}; getRedirectResult(auth).catch(()=>{}); }
 
+/* The sample household (app/demo.js) lives at ?demo=1; the sign-in page is the
+   way back. Inside the store apps there is no address bar, so both are buttons. */
+A.startDemo=()=>{ location.href="/?demo=1"; };
+A.leaveDemo=()=>{ location.href="/"; };
+
 export function showSignIn(){
   gateChrome();
   $("loading").classList.add("hide");
@@ -72,6 +77,7 @@ export function showSignIn(){
     ${isNative()&&!(APPLE_ON&&platform()==="ios")?"":`<div class="or">or</div>`}
     ${APPLE_ON&&(!isNative()||platform()==="ios")?`<button class="gbtn" id="btn-apple">${APPLE_SVG} Continue with Apple</button>`:""}
     ${isNative()?"":`<button class="gbtn" id="btn-google">${GOOGLE_SVG} Continue with Google</button>`}
+    <button class="mini" onclick="A.startDemo()">Look around first, with a sample household</button>
     <div class="verse">"Unless the Lord builds the house, those who build it labor in vain." — Psalm 127</div>`;
   setMode("signin");
   $("auth-toggle").onclick=()=>setMode(mode==="signin"?"signup":"signin");

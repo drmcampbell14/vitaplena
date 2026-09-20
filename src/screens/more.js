@@ -33,7 +33,7 @@ A.openMenu=()=>{
     <div class="row" style="cursor:pointer" onclick="A.openFamilyMode()"><div class="grow"><div class="title">Family mode</div><div class="sub">Big type for the tablet on the counter</div></div></div>
     <div class="row" style="cursor:pointer" onclick="A.rerunOnboarding()"><div class="grow"><div class="title">Set up my rule again</div><div class="sub">Prayers, hours, the bells</div></div></div>
     <div class="row" style="cursor:pointer" onclick="A.installHelp()"><div class="grow"><div class="title">Put Vita Plena on your phone</div><div class="sub">Home screen, full screen, works offline</div></div></div>
-    <div class="row" style="cursor:pointer" onclick="A.signOut()"><div class="grow"><div class="title" style="color:var(--warn)">Sign out</div></div></div>
+    ${S.demo?`<div class="row" style="cursor:pointer" onclick="A.leaveDemo()"><div class="grow"><div class="title" style="color:var(--marian)">Sign in or create your household</div><div class="sub">This is a sample household; nothing here is saved</div></div></div>`:`<div class="row" style="cursor:pointer" onclick="A.signOut()"><div class="grow"><div class="title" style="color:var(--warn)">Sign out</div></div></div>`}
     </div></div>`);
 };
 A.openMore=k=>{ closeSheet(); S.moreKind=k; go("more"); };

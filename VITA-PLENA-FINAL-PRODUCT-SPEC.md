@@ -167,6 +167,8 @@ Built in the rebuild, against the phase list: 2.2 Today ✓ · 2.3 bells (client
 
 **The App Store path from here:** Capacitor wraps `dist/` as-is (see README). Blocking items are all outside the code: Apple Developer enrollment, Sign in with Apple (6.2), a privacy policy and support URL (7.2), then archive → TestFlight → review.
 
+**Revision 5 (2026-09-20), store-ready:** 2.8 Douay-Rheims text ✓ (bundled, with a build-time lectionary index; the live function is the fallback) · Capacitor shells ✓ (`ios/`, `android/`, icons, splash, plist strings, privacy manifest) · 3.1/3.2 bells when closed ✓ as local notifications (no FCM needed) · 5.2 RevenueCat ✓ (SDK, paywall sheet, webhook; on with keys) · 5.4 paywall UX ✓ (soft; nothing locked) · 6.2 Sign in with Apple ✓ (on with `VITE_APPLE_SIGNIN=1`; the iOS app hides Google, so Apple is optional for review) · 6.4 review kit ✓ (`store/LISTING.md`, `store/SUBMIT.md`, screenshots, "Look around first" on the gate, `/support.html`) · fonts self-hosted · bills, scan-a-schedule, task scheduler, Marian palette (earlier in the month). **Left for Mitch, all outside the code:** Apple enrolment and every step in `store/SUBMIT.md`; `npm run lectionary` on the Mac to commit a year of the readings index; Beacon prompt (companion.mjs) awaiting the confirm step. Still open in code: 1.5 server-side Google OAuth (Google Calendar connects from the website; synced events show in the app), 2.7 romcal / 1962 calendar, 5.3 Stripe on the web.
+
 ### Deploy strategy: branch deploy = the parallel site
 Netlify: **Site configuration → Build & deploy → Continuous deployment → Branches and deploy contexts → Branch deploys → "Let me add individual branches"** → add `claude/phase-1-security-auth-hsb3x5`. The branch then deploys at `https://claude-phase-1-security-auth-hsb3x5--vitaplena13.netlify.app` and rebuilds on every push. `netlify.toml` already carries the build command, so no build settings change in the console. When v5 is better than v4, merge to `main`.
 
@@ -186,7 +188,7 @@ Service account: Firebase Console → gear → Project settings → **Service ac
 2. Firebase Authentication → Sign-in method → **Email/Password → Enable**.
 3. Google Cloud → OAuth consent screen → Test users → add the second test account (consent screen is in Testing).
 4. Netlify → branch deploy for this branch; env vars above.
-5. Apple Developer enrollment (start now; gates TestFlight).
+5. Apple Developer enrollment (start now; gates TestFlight). Then `store/SUBMIT.md`, top to bottom.
 6. Buy/confirm the domain (gates 7.4).
 
 ### Decisions taken (2026-09-03, "do all of it and see what sticks")

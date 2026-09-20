@@ -1,0 +1,12 @@
+/* Vita Plena — the two typefaces, self-hosted (SIL Open Font License; see LICENSE.txt).
+   Latin subsets only. Served from the app itself, so the native shells and the
+   offline shell never wait on a third-party font server. */
+@font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/cormorant-garamond-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/cormorant-garamond-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 500; font-display: swap; src: url('/fonts/cormorant-garamond-latin-500-italic.woff2') format('woff2'); }
+@font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 600; font-display: swap; src: url('/fonts/cormorant-garamond-latin-600-italic.woff2') format('woff2'); }
+@font-face { font-family: 'Source Sans 3'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/source-sans-3-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Source Sans 3'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/source-sans-3-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Source Sans 3'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/source-sans-3-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Source Sans 3'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/source-sans-3-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Source Sans 3'; font-style: italic; font-weight: 400; font-display: swap; src: url('/fonts/source-sans-3-latin-400-italic.woff2') format('woff2'); }

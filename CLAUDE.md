@@ -16,8 +16,12 @@ src/app/demo.js            sample household in memory (?demo=1); writes stay in 
 src/screens/*.js           today, pray, calendar, tasks, us, more (settings + Meals/Finance/Family/Notes), family (family mode)
 src/core/state.js          S, bus, profOf, partnerName (no Firebase; importable in tests)
 src/core/people.js         people without accounts, assignee keys (uid | "together" | "p:<id>"), weekly rotation   (pure, tested)
-src/lib/api.js             callFn(name, body): POST to our functions with the user's ID token
-netlify/functions/         companion, household-admin, ics, briefing (scheduled); _shared/admin.mjs holds auth + quotas
+src/lib/api.js             callFn(name, body): POST to our functions with the user's ID token (absolute base inside the apps)
+src/lib/native.js          the native shells: isNative(), apiBase(), status bar, back button, splash, haptics (no-ops on the web)
+src/lib/billing.js         the family plan via RevenueCat (on only with VITE_RC_* keys); src/screens/plan.js is the sheet
+src/core/bellSchedule.js   the week's bells as local notifications (pure, tested); bells.js schedules them inside the apps
+src/core/scripture.js      Douay-Rheims: canon table, citation parser, passage() over public/data/drc (pure, tested)
+netlify/functions/         companion, household-admin, ics, briefing (scheduled), readings, scan, revenuecat-webhook; _shared/admin.mjs holds auth + quotas
 src/companion/companion.js Beacon: capture bar + sheet, state snapshot, action executor
 src/content/prayers.js     prayer library (why / does lines) + guided flows (Rosary, Chaplet, Examen)
 src/core/data.js           Firebase init, state S, write helpers (with demo branch), constants
@@ -28,12 +32,14 @@ src/core/bells.js          the bells: per-device settings, scheduler, synthesize
 src/ui/dom.js              openSheet/closeSheet, openModal/confirmModal, toast, ICON, the `A` action registry
 src/styles/app.css         design system (tokens, both themes, components)
 src/lib/gcal.js            Google Calendar pull
-public/                    manifest.webmanifest, sw.js, icons
+public/                    manifest.webmanifest, sw.js, icons, fonts (self-hosted), privacy/terms/support pages, data/drc + data/lectionary
+ios/ android/              the native shells (Capacitor 8); capacitor.config.ts; assets/ holds the icon and splash sources
+store/                     LISTING.md, SUBMIT.md (click-by-click to the stores), screenshots/ (scripts/store-shots.mjs)
 netlify/functions/         companion.mjs (Admin SDK, verified identity)
 firestore.rules            security rules (source of truth; published by hand until CI deploy lands)
 test/                      Vitest
 ```
-Commands: `npm run dev` · `npm test` · `npm run build`. CI runs test + build on every push.
+Commands: `npm run dev` · `npm test` · `npm run typecheck` · `npm run build` · `npm run ios` / `npm run android` (Mac) · `npm run icons` · `npm run lectionary`. CI runs typecheck + test + build on every push.
 
 Conventions: screens render HTML strings into `#page-<id>` and register with `registerScreen(id, render)`; inline handlers call `A.<name>(...)`, the global action registry in `src/ui/dom.js`. `renderAll()` redraws every screen from `S` on each Firestore snapshot. Full-height readers (prayers, Beacon, check-in) use `openSheet`; small forms use `openModal`.
 
