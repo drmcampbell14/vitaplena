@@ -87,13 +87,137 @@ export const BOOKS = [
   ["rev", "Revelation", "Revelation of John", ["Rv", "Rev", "Apocalypse", "Apoc", "Revelation of John"]]
 ].map(([id, name, drc, alias]) => ({ id, name, drc, alias }));
 
+/* ---------------- psalm numbering ----------------
+
+   The Douay-Rheims follows the Vulgate's psalm numbers; modern lectionaries — and
+   every citation feed built from them — follow the Masoretic. They agree for
+   Psalms 1-8 and 148-150 and disagree everywhere between, because the Vulgate
+   joins Masoretic 9 and 10 into one psalm and joins 114 and 115, while splitting
+   Masoretic 116 and 147 in two. Get this wrong and the responsorial psalm is not
+   merely off by a verse, it is a different psalm: Masoretic 145 ("Every day will
+   I bless thee") is Douay 144, while Douay 145 is "Put not your trust in princes".
+
+   Citations that carry both numbers — "Psalm 144(145)" — say outright which is
+   which and never come through here; parseCitation keeps the outer, Vulgate one.
+   A bare number is Masoretic and is mapped below. Boundaries verified against the
+   bundled text: Douay 9 runs to 39 verses (9:22 = Masoretic 10:1) and Douay 113
+   to 26 (113:9 = Masoretic 115:1). */
+
+/** One Masoretic psalm verse as the Vulgate numbers it. @returns {{ch:number, v:number}} */
+export function toVulgatePsalm(ch, v) {
+  if (ch === 10) return { ch: 9, v: v + 21 };
+  if (ch === 115) return { ch: 113, v: v + 8 };
+  if (ch === 116) return v <= 9 ? { ch: 114, v } : { ch: 115, v: v - 9 };
+  if (ch === 147) return v <= 11 ? { ch: 146, v } : { ch: 147, v: v - 11 };
+  if (ch === 114) return { ch: 113, v };
+  if ((ch >= 11 && ch <= 113) || (ch >= 117 && ch <= 146)) return { ch: ch - 1, v };
+  return { ch, v };                                   // 1-9 and 148-150 agree
+}
+
+/** A whole Masoretic psalm as Vulgate ranges (a merge covers only part of its chapter). */
+const WHOLE_PSALM = {
+  10: [{ ch: 9, from: 22, to: null }],
+  114: [{ ch: 113, from: 1, to: 8 }],
+  115: [{ ch: 113, from: 9, to: null }],
+  116: [{ ch: 114, from: 1, to: null }, { ch: 115, from: 1, to: null }],
+  147: [{ ch: 146, from: 1, to: null }, { ch: 147, from: 1, to: null }]
+};
+
+/** Re-number parsed ranges from Masoretic to Vulgate, splitting any that straddle a join. */
+export function vulgatiseRanges(ranges) {
+  const out = [];
+  for (const r of ranges) {
+    if (r.from === 1 && r.to === null && WHOLE_PSALM[r.ch]) { out.push(...WHOLE_PSALM[r.ch].map((x) => ({ ...x }))); continue; }
+    const a = toVulgatePsalm(r.ch, r.from);
+    if (r.to === null) { out.push({ ch: a.ch, from: a.v, to: WHOLE_PSALM[r.ch] ? WHOLE_PSALM[r.ch][0].to : null }); continue; }
+    const b = toVulgatePsalm(r.ch, r.to);
+    if (a.ch === b.ch) { out.push({ ch: a.ch, from: a.v, to: b.v }); continue; }
+    out.push({ ch: a.ch, from: a.v, to: null }, { ch: b.ch, from: 1, to: b.v });   // straddles the join
+  }
+  return out;
+}
+
+/* ---------------- where the Vulgate divides books differently ----------------
+
+   The psalter is the big one (above), but three other books are numbered apart
+   in the Douay, and each shows up in the lectionary. Verified verse by verse
+   against the bundled text:
+
+     Joel        modern chapter 3 is Douay 2:28-32, and modern 4 is Douay 3.
+     Zechariah   modern 2:1-4 is Douay 1:18-21; modern 2:5-17 is Douay 2:1-13.
+     Esther      the Greek additions, which modern lectionaries letter A-F, sit
+                 in the Douay as chapters 10:4-16. "Esther C:12" is Douay 14:1. */
+
+/** Modern chapter-and-verse → Douay, for the books that need it. Psalms are separate. */
+const DIVERGENT = {
+  joel: (ch, v) => (ch === 4 ? { ch: 3, v } : ch === 3 ? { ch: 2, v: v + 27 } : { ch, v }),
+  zech: (ch, v) => (ch === 2 ? (v <= 4 ? { ch: 1, v: v + 17 } : { ch: 2, v: v - 4 }) : { ch, v })
+};
+
+/** The lettered Greek additions to Esther, as Douay chapter and verse. */
+const ESTHER_ADDITION = {
+  A: (v) => (v <= 11 ? { ch: 11, v: v + 1 } : { ch: 12, v: v - 11 }),
+  B: (v) => ({ ch: 13, v }),
+  C: (v) => (v <= 11 ? { ch: 13, v: v + 7 } : { ch: 14, v: v - 11 }),
+  D: (v) => ({ ch: 15, v: v + 3 }),
+  E: (v) => ({ ch: 16, v }),
+  F: (v) => (v <= 10 ? { ch: 10, v: v + 3 } : { ch: 11, v: v - 10 })
+};
+
+/** Re-number ranges for a book the Douay divides differently, splitting where it must. */
+function divergeRanges(map, ranges) {
+  const out = [];
+  for (const r of ranges) {
+    const a = map(r.ch, r.from);
+    if (r.to === null) { out.push({ ch: a.ch, from: a.v, to: null }); continue; }
+    const b = map(r.ch, r.to);
+    if (a.ch === b.ch) out.push({ ch: a.ch, from: a.v, to: b.v });
+    else out.push({ ch: a.ch, from: a.v, to: null }, { ch: b.ch, from: 1, to: b.v });
+  }
+  return out;
+}
+
+/** Books of a single chapter: a bare number in their citations is a verse. */
+export const SINGLE_CHAPTER = new Set(["phlm", "jude", "obad", "2john", "3john"]);
+
 const norm = (s) => String(s || "").toLowerCase().replace(/\./g, "").replace(/\s+/g, " ").trim()
   .replace(/^(first|1st|i)\s/, "1 ").replace(/^(second|2nd|ii)\s/, "2 ").replace(/^(third|3rd|iii)\s/, "3 ");
 const LOOKUP = new Map();
 for (const b of BOOKS) for (const n of [b.name, b.drc, ...b.alias]) LOOKUP.set(norm(n), b);
 
-/** Find a book by any spelling a lectionary uses, or null. */
-export function findBook(name) { return LOOKUP.get(norm(name)) || null; }
+/** Levenshtein distance, capped: we only care whether it is small. */
+function editDistance(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+/** Find a book by any spelling a lectionary uses, or null.
+
+    Feeds are typed by hand and misspell book names ("Phiippians", "Sirarch"), so
+    an exact miss falls back to the nearest spelling within two edits. It must be
+    a clear winner: two books the same distance away means we admit we don't know
+    rather than guess, which is why 1/2/3 John and the like stay safe. */
+export function findBook(name) {
+  const key = norm(name);
+  const hit = LOOKUP.get(key);
+  if (hit) return hit;
+  if (key.length < 5) return null;                       // too short to correct safely
+  let best = null, bestD = 3, tie = false;
+  for (const [spelling, book] of LOOKUP) {
+    const d = editDistance(key, spelling);
+    if (d < bestD) { bestD = d; best = book; tie = false; }
+    else if (d === bestD && book !== best) tie = true;
+  }
+  return best && !tie ? best : null;
+}
 
 /**
  * Parse one citation into verse ranges.
@@ -108,6 +232,25 @@ export function parseCitation(text) {
   if (!s) return null;
   s = s.split(/\s+or\s+/i)[0].trim();
   s = s.replace(/^(?:cf\.?|see|from)\s+/i, "");            // "cf. John 6:63" — the acclamation's usual form
+  /* Lectionary feeds are typed by hand and arrive scuffed. Tidy the punctuation
+     before anything tries to read meaning out of it: a space after the colon
+     ("Matthew 15: 21-28"), "and" used as a list separator ("6 and 8ab, 16bc and
+     17"), and part-verse letters detached from their number ("51:12 cd-20"). */
+  s = s.replace(/:\s+/g, ":").replace(/\s+and\s+/gi, ", ").replace(/(\d)\s+([a-z]{1,4})\b/g, "$1$2");
+  /* "Esther C:12, 14-16" — a lettered Greek addition. It has no chapter number
+     to parse, so it is resolved here and returned before the usual machinery. */
+  const greek = /^esther\s+([A-F]):(.+)$/i.exec(s);
+  if (greek) {
+    const map = ESTHER_ADDITION[greek[1].toUpperCase()];
+    const book = findBook("Esther");
+    const ranges = [];
+    for (const part of greek[2].replace(/(\d)[a-zA-Z]+\b/g, "$1").split(/[,;]/).map((p) => p.trim()).filter(Boolean)) {
+      const span = /^(\d+)\s*-\s*(\d+)$/.exec(part), one = /^(\d+)$/.exec(part);
+      if (span) { const a = map(+span[1]), b = map(+span[2]); ranges.push(a.ch === b.ch ? { ch: a.ch, from: a.v, to: b.v } : { ch: a.ch, from: a.v, to: null }); }
+      else if (one) { const a = map(+one[1]); ranges.push({ ch: a.ch, from: a.v, to: a.v }); }
+    }
+    return ranges.length ? { book, ranges, label: `Esther ${greek[1].toUpperCase()}:${greek[2].trim()}` } : null;
+  }
   /* Book name is everything up to the first digit that starts a chapter — but a
      leading ordinal ("1 Samuel") is part of the name. */
   const m = /^((?:[1-3]|I{1,3})?\s?[A-Za-z][A-Za-z .]*?)\s+(\d.*)$/.exec(s);
@@ -116,12 +259,25 @@ export function parseCitation(text) {
   if (!book) return null;
   let rest = m[2].trim();
   /* Psalm 144(145): the parenthesised number is the Hebrew count; the Douay
-     follows the Vulgate, so the number outside the brackets is ours. */
-  rest = rest.replace(/^(\d+)\s*\(\d+\)/, "$1").replace(/[a-z]\b/g, "").replace(/\bff\b/g, "");
+     follows the Vulgate, so the number outside the brackets is ours. A psalm
+     cited with a bare number came from a modern lectionary and is Masoretic —
+     remember that, and re-number it once the ranges are parsed. */
+  const dual = /^\d+\s*\(\d+\)/.test(rest);
+  /* Part-verse letters mark where a reading starts or stops inside a verse
+     ("1-16a", "19A; 12:1-6A, 10AB", "1bcde"). We read whole verses, so a run of
+     them after a number is dropped however long it is and whichever case it is
+     in — the old rule only knew how to drop one lowercase letter at a time. */
+  rest = rest.replace(/^(\d+)\s*\(\d+\)/, "$1").replace(/(\d)[a-zA-Z]+\b/g, "$1").replace(/\bff\b/g, "");
   const ranges = [];
-  let ch = null;
+  /* Philemon, Jude, Obadiah, 2 and 3 John have one chapter each, so their
+     citations name verses directly ("Philemon 7-20"). Everywhere else a bare
+     range means chapters. */
+  const oneChapter = SINGLE_CHAPTER.has(book.id);
+  let ch = oneChapter ? 1 : null;
   for (const part of rest.split(/[,;]/).map((p) => p.trim()).filter(Boolean)) {
-    const cross = /^(\d+):(\d+)\s*-\s*(\d+):(\d+)$/.exec(part);      // 12:31-13:13
+    /* 12:31-13:13. The trailing group swallows a stray "-2" of the kind the feed
+       sends in "Jonah 1:1-2:1-2, 11", where the reading really ends at 2:1. */
+    const cross = /^(\d+):(\d+)\s*-\s*(\d+):(\d+)(?:\s*-\s*\d+)?$/.exec(part);
     const span = /^(\d+):(\d+)\s*-\s*(\d+)$/.exec(part);              // 3:1-11
     const one = /^(\d+):(\d+)$/.exec(part);                           // 6:1
     const cont = /^(\d+)\s*-\s*(\d+)$/.exec(part);                     // 8-9 (after a chapter)
@@ -135,7 +291,10 @@ export function parseCitation(text) {
     else if (single) { ch = +single[1]; ranges.push({ ch, from: 1, to: null }); }
   }
   if (!ranges.length) return null;
-  return { book, ranges, label: `${book.name} ${m[2].trim()}` };
+  const final = book.id === "ps"
+    ? (dual ? ranges : vulgatiseRanges(ranges))
+    : (DIVERGENT[book.id] ? divergeRanges(DIVERGENT[book.id], ranges) : ranges);
+  return { book, ranges: final, label: `${book.name} ${m[2].trim()}` };
 }
 
 /**
