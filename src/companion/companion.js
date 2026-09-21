@@ -6,7 +6,7 @@
 import { S, esc, jsq, rid, fmtT, todayS, ymd, addD, saveField, addItem, updItem, delItem, ensureSection, partnerName, profOf, db, auth } from "../core/data.js";
 import { syncGcal } from "../lib/gcal.js";
 import { doc, updateDoc } from "firebase/firestore";
-import { $, A, ICON, openSheet, toast, haptic } from "../ui/dom.js";
+import { $, A, ICON, openSheet, openModal, closeModal, toast, haptic } from "../ui/dom.js";
 import { renderAll } from "../app/shell.js";
 import { who, assigneeOn, people, resolveName } from "../core/people.js";
 
@@ -41,9 +41,35 @@ function snapshot(){
 const log=[];      // {role:"user"|"bot", text, chips?}
 let busy=false;
 
+/* ---------------- consent ----------------
+   Talking to Beacon sends the message and a snapshot of the household's day to
+   Anthropic. App Store guideline 5.1.2(i) asks for that to be disclosed plainly
+   and agreed to before it happens, not buried in a policy page, so the first
+   message of all waits behind this. Kept per device, like the bells, so a new
+   phone asks again. Nothing else in the app is gated on it: decline and every
+   other screen still works, which is the other half of the same guideline. */
+const CONSENT_KEY="vp.beacon.consent.v1";
+const consented=()=>{ try{ return localStorage.getItem(CONSENT_KEY)==="yes"; }catch{ return false; } };
+/** Ask once. Calls `then` only if the answer is yes. */
+function askConsent(then){
+  openModal(`<h3>Before you talk to ${esc(BEACON_NAME)}</h3>
+    <p class="modal-p">${esc(BEACON_NAME)} is not on your phone. To answer, it sends what you type and a snapshot of today's schedule — your practices, tasks and events, and your household's first names — to Anthropic's Claude, which writes the reply.</p>
+    <p class="modal-p">Anthropic handles it under its own privacy terms and does not use it to train its models. We keep a count of messages, not the messages. Nothing is sent until you agree, and the rest of the app works whether you do or not.</p>
+    <div class="actions"><button class="btn ghost" onclick="A.closeModal()">Not now</button>
+    <button class="btn" onclick="A.beaconConsent()">I understand, continue</button></div>`);
+  pendingConsent=then;
+}
+let pendingConsent=null;
+A.beaconConsent=()=>{
+  try{ localStorage.setItem(CONSENT_KEY,"yes"); }catch{ /* private browsing: ask again next time */ }
+  closeModal();
+  const f=pendingConsent; pendingConsent=null; if(f)f();
+};
+
 /** Send a message. Returns {say, chips} or null. Renders the sheet if open. */
 A.beaconSend=async(text,{inline=false}={})=>{
   text=(text||"").trim(); if(!text||busy)return null;
+  if(!consented()){ askConsent(()=>A.beaconSend(text,{inline})); return null; }
   busy=true;
   log.push({role:"user",text}); renderSheetLog();
   const typing={role:"typing",text:"ordering the day…"}; log.push(typing); renderSheetLog();
