@@ -269,6 +269,9 @@ A.rmPlan=id=>saveKey("plan",(S.state.plan||[]).filter(p=>p.id!==id)).then(()=>re
 A.delExamen=id=>delItem(id).then(()=>repaint("examens"));
 
 /* ---------------- readers ---------------- */
+/** The chapter a citation names, before any re-numbering. Null when it names none. */
+const firstChapter=s=>{ const m=/(\d+)\s*(?:\(\d+\))?\s*:/.exec(String(s||"")); return m?+m[1]:null; };
+
 A.openReadings=async()=>{
   const L=S.liturgy||{}, list=L.readings||[];
   if(!list.length)return toast("The readings haven't loaded yet");
@@ -283,12 +286,16 @@ A.openReadings=async()=>{
     const body=p&&p.verses.length
       ?p.verses.map(v=>`<p><sup class="vn">${v.v}</sup>${esc(v.text)}</p>`).join("")
       :(Array.isArray(r.body)&&r.body.length?r.body.map(t=>`<p>${esc(t)}</p>`).join(""):`<p class="muted">This passage isn't in the bundled text. Read it on USCCB.</p>`);
-    return `<details class="rdg"${i===0?" open":""}><summary><span>${esc(r.label)}</span><span class="src">${esc(r.source)}</span></summary>
+    /* The lectionary cites a psalm by its modern number; the Douay prints it under
+       the Vulgate's. Say so on the line itself, or the reader will think we have
+       opened the wrong psalm. */
+    const douay=p&&p.verses.length&&p.verses[0].ch!==firstChapter(r.source)?` · Douay ${p.verses[0].ch}`:"";
+    return `<details class="rdg"${i===0?" open":""}><summary><span>${esc(r.label)}</span><span class="src">${esc(r.source)}${douay}</span></summary>
       ${r.heading?`<div class="rhead">${esc(r.heading)}</div>`:""}<div class="rtext">${body}</div></details>`;
   }));
   const el=document.querySelector('.sheet.open [data-pane="readings"]'); if(!el)return;
   el.innerHTML=`${head}<div style="margin-top:14px">${blocks.join("")}</div>
-    <div class="hint" style="margin-top:16px;opacity:.8">Douay-Rheims Bible, Challoner revision — public domain. Psalms follow the Vulgate numbering; the number in brackets is the Hebrew one.</div>`;
+    <div class="hint" style="margin-top:16px;opacity:.8">Douay-Rheims Bible, Challoner revision — public domain. The lectionary cites the psalms by their modern numbers; the Douay prints them under the Vulgate's, which runs one behind from Psalm 10 to Psalm 147.</div>`;
 };
 A.openLibrary=()=>{
   const easter=season(new Date()).name==="Easter";
