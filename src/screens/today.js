@@ -11,6 +11,7 @@ import { billsCard } from "./bills.js";
 import { who, assigneeOn, mineOn } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, openSheet, toast } from "../ui/dom.js";
 import { billingOn } from "../lib/billing.js";
+import { canDictate } from "../companion/companion.js";
 import { trialOver } from "./plan.js";
 import { registerScreen } from "../app/shell.js";
 
@@ -115,7 +116,7 @@ function render(){
     </div>
     <div class="capture">
       <input id="cap-in" placeholder="Tell Beacon: rosary at 8, vacuum Tuesdays…" onkeydown="if(event.key==='Enter')A.captureSend()" autocomplete="off">
-      <button class="iconbtn ghost" id="cap-mic" onclick="A.beaconMic('cap-in','cap-mic')" aria-label="Speak">${ICON.mic}</button>
+      ${canDictate()?`<button class="iconbtn ghost" id="cap-mic" onclick="A.beaconMic('cap-in','cap-mic')" aria-label="Speak">${ICON.mic}</button>`:""}
       <button class="iconbtn lit" onclick="A.captureSend()" aria-label="Send">${ICON.send}</button>
     </div>
     ${S.lastBeacon?`<div class="beacon-reply"><div class="who">Beacon</div>${esc(S.lastBeacon.say)}${S.lastBeacon.chips?.length?`<div class="chips">${S.lastBeacon.chips.map(c=>`<span class="chip ${c.terra?"warn":"lit"}">${esc(c.label)}</span>`).join("")}</div>`:""}</div>`:""}

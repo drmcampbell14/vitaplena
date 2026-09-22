@@ -100,7 +100,7 @@ A.openBeacon=()=>{
     <div class="b-head"><div class="iconbtn lit" style="width:34px;height:34px">${ICON.beacon}</div><div><div class="b-name">${BEACON_NAME}</div><div class="hint">Runs the house from plain English</div></div></div>
     <div class="b-log" id="b-log"></div>
     <div class="suggest">${suggestions().map(s=>`<span class="chip" onclick="A.beaconSuggest('${jsq(s)}')">${esc(s)}</span>`).join("")}</div>
-    <div class="b-in"><input id="b-in" placeholder="Tell ${BEACON_NAME}…" onkeydown="if(event.key==='Enter')A.beaconSubmit()" autocomplete="off"><button class="iconbtn ghost" id="b-mic" onclick="A.beaconMic('b-in','b-mic')" aria-label="Speak">${ICON.mic}</button><button class="iconbtn ghost" id="b-voice" onclick="A.beaconVoice()" title="${voiceOn?"Voice on":"Voice off"}">${voiceOn?"🔊":"🔇"}</button><button class="iconbtn lit" onclick="A.beaconSubmit()" aria-label="Send">${ICON.send}</button></div>
+    <div class="b-in"><input id="b-in" placeholder="Tell ${BEACON_NAME}…" onkeydown="if(event.key==='Enter')A.beaconSubmit()" autocomplete="off">${canDictate()?`<button class="iconbtn ghost" id="b-mic" onclick="A.beaconMic('b-in','b-mic')" aria-label="Speak">${ICON.mic}</button>`:""}<button class="iconbtn ghost" id="b-voice" onclick="A.beaconVoice()" title="${voiceOn?"Voice on":"Voice off"}">${voiceOn?"🔊":"🔇"}</button><button class="iconbtn lit" onclick="A.beaconSubmit()" aria-label="Send">${ICON.send}</button></div>
   </div>`,{cls:"full"});
   renderSheetLog(); setTimeout(()=>$("b-in")?.focus(),300);
 };
@@ -171,6 +171,11 @@ function apply(actions){
 
 /* ---------------- voice in / out ---------------- */
 let recog=null, listening=false;
+/* Dictation is the browser's, not ours. Safari and Chrome have it; the web view
+   the iOS and Android apps run in does not, so inside the apps the button would
+   be a button that only ever apologises. Ask before drawing it. */
+export const canDictate=()=>!!(typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition));
+
 A.beaconMic=(inputId,btnId)=>{
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR)return toast("Voice input isn't supported in this browser");

@@ -30,6 +30,15 @@
 	<string>Vita Plena reads a photo of a schedule you choose so its dates can be added to your calendar.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>The bells: a notification at each hour of prayer you set.</string>
+	<!-- Dictation into the Beacon box. The web view's own speech recognition is
+	     used where it exists, and iOS ends the app on the spot if it is asked for
+	     the microphone without these two lines. The button is drawn only when the
+	     web view actually has the API (canDictate() in src/companion/companion.js),
+	     so on a web view without it neither the button nor these prompts appear. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Vita Plena listens only while you hold the microphone button, so you can speak to Beacon instead of typing.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>What you speak to Beacon is turned into text so it can be understood.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
