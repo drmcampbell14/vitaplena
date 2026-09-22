@@ -15,6 +15,7 @@ import { loadGis } from "./lib/gcal.js";
 import { isDemo, loadDemo } from "./app/demo.js";
 import { isNative, initNative, hideSplash } from "./lib/native.js";
 import { initBilling } from "./lib/billing.js";
+import { initPwa } from "./lib/pwa.js";
 import { $, A, closeModal, closeSheet, toast } from "./ui/dom.js";
 import { go } from "./app/shell.js";
 import "./screens/today.js";
@@ -111,6 +112,5 @@ initNative({
   onResume:()=>{ renderAll(); BELL.tick(); }
 });
 
-if(!isNative()&&"serviceWorker" in navigator&&location.hostname!=="localhost"){
-  window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
-}
+/* The web app on a phone: service worker, update bar, install prompt, offline line. */
+initPwa();

@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Vita Plena">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preload" href="/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/source-sans-3-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -41,6 +42,9 @@
 
 <!-- Family mode: the big-text counter screen. Rendered by src/screens/family.js -->
 <div id="family" class="family hide"></div>
+
+<!-- One bar for the web app on a phone: offline, update ready, install. src/lib/pwa.js -->
+<div id="pwa-bar" class="pwa-bar hide" role="status" aria-live="polite"></div>
 
 <!-- Bottom sheet: prayers, Beacon, menus -->
 <div class="sheet" id="sheet">

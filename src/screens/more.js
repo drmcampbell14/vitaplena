@@ -9,6 +9,7 @@ import { callFn } from "../lib/api.js";
 import { people } from "../core/people.js";
 import { $, A, ICON, openModal, closeModal, confirmModal, openSheet, closeSheet, toast } from "../ui/dom.js";
 import { isNative } from "../lib/native.js";
+import { promptInstall, isStandalone } from "../lib/pwa.js";
 import { registerScreen, go, renderAll } from "../app/shell.js";
 import { BELL } from "../core/bells.js";
 import { planLine } from "./plan.js";
@@ -32,15 +33,15 @@ A.openMenu=()=>{
     <div style="margin-top:10px">${rows.map(([k,l,s])=>`<div class="row" style="cursor:pointer" onclick="A.openMore('${k}')"><div class="grow"><div class="title">${esc(l)}</div>${s?`<div class="sub">${esc(s)}</div>`:""}</div>${ICON.chevron.replace('<svg','<svg style="width:18px;height:18px;color:var(--faint)"')}</div>`).join("")}
     <div class="row" style="cursor:pointer" onclick="A.openFamilyMode()"><div class="grow"><div class="title">Family mode</div><div class="sub">Big type for the tablet on the counter</div></div></div>
     <div class="row" style="cursor:pointer" onclick="A.rerunOnboarding()"><div class="grow"><div class="title">Set up my rule again</div><div class="sub">Prayers, hours, the bells</div></div></div>
-    <div class="row" style="cursor:pointer" onclick="A.installHelp()"><div class="grow"><div class="title">Put Vita Plena on your phone</div><div class="sub">Home screen, full screen, works offline</div></div></div>
+    ${isStandalone()?"":`<div class="row" style="cursor:pointer" onclick="A.installHelp()"><div class="grow"><div class="title">Put Vita Plena on your phone</div><div class="sub">Home screen, full screen, works offline</div></div></div>`}
     ${S.demo?`<div class="row" style="cursor:pointer" onclick="A.leaveDemo()"><div class="grow"><div class="title" style="color:var(--marian)">Sign in or create your household</div><div class="sub">This is a sample household; nothing here is saved</div></div></div>`:`<div class="row" style="cursor:pointer" onclick="A.signOut()"><div class="grow"><div class="title" style="color:var(--warn)">Sign out</div></div></div>`}
     </div></div>`);
 };
 A.openMore=k=>{ closeSheet(); S.moreKind=k; go("more"); };
-A.installHelp=()=>openSheet(`<div class="reader"><div class="eyebrow lit">Install</div><div class="r-title" style="font-size:30px">On your phone</div>
+A.installHelp=async()=>{ if(await promptInstall())return; openSheet(`<div class="reader"><div class="eyebrow lit">Install</div><div class="r-title" style="font-size:30px">On your phone</div>
   <div class="r-body" style="font-family:var(--sans);font-size:16px"><p style="font-family:var(--sans);font-size:16px"><b>iPhone.</b> Open this page in Safari. Tap the Share button (the square with the arrow). Scroll and tap <b>Add to Home Screen</b>. Tap Add.</p>
   <p style="font-family:var(--sans);font-size:16px"><b>Android.</b> Open in Chrome. Tap the three dots, then <b>Add to Home screen</b> or <b>Install app</b>.</p>
-  <p style="font-family:var(--sans);font-size:16px"><b>A tablet on the counter.</b> Same steps. Then open it, leave it on, and the house rings from there.</p></div></div>`);
+  <p style="font-family:var(--sans);font-size:16px"><b>A tablet on the counter.</b> Same steps. Then open it, leave it on, and the house rings from there.</p></div></div>`); };
 
 function render(){
   const k=S.moreKind;

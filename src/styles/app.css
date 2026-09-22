@@ -615,3 +615,12 @@ body.family-on { overflow: hidden; }
   .sheet .panel { left: 50%; transform: translate(-50%, 102%); width: 100%; max-width: 640px; }
   .sheet.open .panel { transform: translate(-50%, 0); }
 }
+
+/* ---------------- the web app on a phone: one bar for offline / update / install ---------------- */
+.pwa-bar { position: fixed; left: 12px; right: 12px; bottom: calc(66px + var(--safe-b)); z-index: 140; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px; border-radius: 14px; background: var(--marian-deep); color: #F5F0E6; font-size: 14px; line-height: 1.35; box-shadow: 0 8px 24px rgba(22,56,106,.28); }
+.pwa-bar.hide { display: none; }
+.pwa-bar.offline { background: #3A3F4B; }
+.pwa-bar .pwa-text { flex: 1; }
+.pwa-bar .pwa-btn { flex: none; border: 1px solid rgba(245,240,230,.35); background: transparent; color: inherit; border-radius: 999px; padding: 6px 12px; font: inherit; font-weight: 600; font-size: 13px; }
+.pwa-bar .pwa-btn.primary { background: #F5F0E6; color: var(--marian-deep); border-color: transparent; }
+body.gate-on .pwa-bar, .family-on .pwa-bar { bottom: calc(16px + var(--safe-b)); }

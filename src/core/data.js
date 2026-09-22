@@ -53,8 +53,11 @@ export const VIRTUES=["Faith","Hope","Charity","Prudence","Justice","Fortitude",
 export const app=initializeApp(FIREBASE_CONFIG);
 export const auth=getAuth(app);
 let _db;
+/* Offline store for Firestore: reads answer from the device, writes queue and sync
+   when the network returns, and every open tab shares one copy. If the browser
+   refuses (private mode, an old browser, storage disabled) the app runs online-only. */
 try{_db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});}
-catch(e){_db=initializeFirestore(app,{});}
+catch(e){ console.warn("Firestore offline store unavailable ("+(e?.code||e?.message||e)+"); running online-only."); _db=initializeFirestore(app,{}); }
 export const db=_db;
 export const provider=new GoogleAuthProvider();
 

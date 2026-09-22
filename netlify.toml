@@ -15,6 +15,26 @@
 [functions]
   node_bundler = "esbuild"
 
+# The service worker must be re-checked on every load, or a device could keep an
+# old build for a day. The manifest carries its own type for the install prompt.
+# Hashed build assets never change under one name, so they may be kept for a year.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 # Single-page app: every path serves index.html; the app routes client-side.
 [[redirects]]
   from = "/*"

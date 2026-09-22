@@ -44,6 +44,8 @@ await writeFile("public/icon.svg", iconSvg({ size: 512 }));
 await png(iconSvg({ size: 192 }), "public/icons/icon-192.png");
 await png(iconSvg({ size: 512 }), "public/icons/icon-512.png");
 await png(iconSvg({ size: 180 }), "public/icons/apple-touch-icon.png");
+await png(iconSvg({ size: 32, radius: 0.18 }), "public/icons/favicon-32.png");
+await png(iconSvg({ size: 64, radius: 0.18 }), "public/icons/favicon-64.png");
 // maskable: no rounded corners, the mark within the inner 80% safe zone
 await png(iconSvg({ size: 512, radius: 0, scale: 0.8 }), "public/icons/icon-maskable-512.png");
 
